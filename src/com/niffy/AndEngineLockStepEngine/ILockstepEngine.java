@@ -3,6 +3,12 @@ package com.niffy.AndEngineLockStepEngine;
 import org.andengine.engine.lockstep.ILockstep;
 
 public interface ILockstepEngine extends ILockstep {
+	public void start();
+
+	public void stop();
+
+	public void pause();
+
 	/**
 	 * Get the current tick length in use
 	 * 
@@ -27,10 +33,10 @@ public interface ILockstepEngine extends ILockstep {
 	/**
 	 * Set the standard game step duration
 	 * 
-	 * @param pStandardGameStepTime
+	 * @param pStandardGameTickLength
 	 *            {@link Long} of duration in milliseconds
 	 */
-	public void setStandardGameLength(final long pStandardGameStepTime);
+	public void setStandardGameTickLength(final long pStandardGameTickLength);
 
 	/**
 	 * Set the change over step for the tick length.
@@ -54,15 +60,17 @@ public interface ILockstepEngine extends ILockstep {
 	 * Subscribe for when the game step changes.
 	 * 
 	 * @param pLockstepListener
-	 *            {@link ILockstepListener} to call
+	 *            {@link ILockstepStepChangeListener} to call
 	 */
-	public void subscribeStepChangeListener(final ILockstepListener pLockstepListener);
+	public void subscribeStepChangeListener(final ILockstepStepChangeListener pLockstepListener);
 
 	/**
 	 * Unsubscribe from game step changes.
 	 * 
 	 * @param pLockstepListener
-	 *            {@link ILockstepListener} which is unsubscribing.
+	 *            {@link ILockstepStepChangeListener} which is unsubscribing.
 	 */
-	public void unsubscribeStepChangeListener(final ILockstepListener pLockstepListener);
+	public void unsubscribeStepChangeListener(final ILockstepStepChangeListener pLockstepListener);
+
+	public ILockstepNetwork getLockstepNetwork();
 }

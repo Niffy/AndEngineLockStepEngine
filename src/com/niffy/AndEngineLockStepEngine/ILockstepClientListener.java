@@ -1,0 +1,8 @@
+package com.niffy.AndEngineLockStepEngine;
+
+import java.net.InetAddress;
+
+public interface ILockstepClientListener {
+	public void clientConnected(final InetAddress pClient);
+	public void clientDisconnected(final InetAddress pClient);
+}

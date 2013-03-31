@@ -1,12 +1,20 @@
 package com.niffy.AndEngineLockStepEngine;
 
-
 import java.util.ArrayList;
 
-public class Lockstep implements ILockstepEngine{
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import android.os.Message;
+
+import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
+
+public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	// ===========================================================
 	// Constants
 	// ===========================================================
+	@SuppressWarnings("unused")
+	private final Logger log = LoggerFactory.getLogger(Lockstep.class);
 
 	// ===========================================================
 	// Fields
@@ -19,7 +27,7 @@ public class Lockstep implements ILockstepEngine{
 	/**
 	 * Listeners to update when the game step changes.
 	 */
-	protected ArrayList<ILockstepListener> mListeners;
+	protected ArrayList<ILockstepStepChangeListener> mStepChangeListeners;
 	/**
 	 * Current game step
 	 */
@@ -49,29 +57,65 @@ public class Lockstep implements ILockstepEngine{
 	 * Countdown to start the game.
 	 */
 	protected long mCountdownTime = 0;
+	final ILockstepNetwork mLockstepNetwork;
+	/**
+	 * Started the UDP lockstep? If false probably doing TCP stages.
+	 */
+	protected boolean mStarted = false;
+
 	// ===========================================================
 	// Constructors
 	// ===========================================================
-
+	/**
+	 * 
+	 */
 	public Lockstep() {
-		this.mListeners = new ArrayList<ILockstepListener>();
+		this.mStepChangeListeners = new ArrayList<ILockstepStepChangeListener>();
+		this.mLockstepNetwork = new LockstepNetwork(this);
 	}
 
 	// ===========================================================
-	// Methods for/from SuperClass/Interfaces
+	// Methods for/from SuperClass/Interfaces IHandlerMessage
 	// ===========================================================
 	@Override
-	public void onUpdate(long pNanosecondsElapsed){
-		this.mSecondsElapsedAccumulator += pNanosecondsElapsed;
-		while(this.mSecondsElapsedAccumulator >= this.mCurrentTickLengthNanoSeconds){
-			this.incrementGameStep();
-			if(this.mGameStepChangeOver == this.mCurrentGameStep){
-				this.tickChangeOver();
+	public void handlePassedMessage(Message pMessage) {
+
+	}
+
+	// ===========================================================
+	// Methods for/from SuperClass/Interfaces ILockstepEngine
+	// ===========================================================
+	@Override
+	public void onUpdate(long pNanosecondsElapsed) {
+		if (this.mStarted) {
+			this.mSecondsElapsedAccumulator += pNanosecondsElapsed;
+			while (this.mSecondsElapsedAccumulator >= this.mCurrentTickLengthNanoSeconds) {
+				this.incrementGameStep();
+				if (this.mGameStepChangeOver == this.mCurrentGameStep) {
+					this.tickChangeOver();
+				}
+				this.mSecondsElapsedAccumulator -= this.mCurrentTickLengthNanoSeconds;
 			}
-			this.mSecondsElapsedAccumulator -= this.mCurrentTickLengthNanoSeconds;
 		}
 	}
-	
+
+	@Override
+	public void start() {
+		this.mStarted = true;
+	}
+
+	@Override
+	public void stop() {
+		this.mStarted = false;
+	}
+
+	@Override
+	public void pause() {
+		/*
+		 * TODO implement pause 
+		 */
+	}
+
 	@Override
 	public long getCurrentTickLength() {
 		return this.mCurrentTickLength;
@@ -88,7 +132,7 @@ public class Lockstep implements ILockstepEngine{
 	}
 
 	@Override
-	public void setStandardGameLength(long pStandardGameStepTime) {
+	public void setStandardGameTickLength(long pStandardGameStepTime) {
 		this.mStandardTickLength = pStandardGameStepTime;
 	}
 
@@ -102,21 +146,26 @@ public class Lockstep implements ILockstepEngine{
 	public void setCountDownToStart(long pCountdown) {
 		this.mCountdownTime = pCountdown;
 	}
-	
+
 	@Override
-	public void subscribeStepChangeListener(ILockstepListener pLockstepListener) {
-		if(!this.mListeners.contains(pLockstepListener)){
-			this.mListeners.add(pLockstepListener);
+	public void subscribeStepChangeListener(ILockstepStepChangeListener pLockstepListener) {
+		if (!this.mStepChangeListeners.contains(pLockstepListener)) {
+			this.mStepChangeListeners.add(pLockstepListener);
 		}
 	}
 
 	@Override
-	public void unsubscribeStepChangeListener(ILockstepListener pLockstepListener) {
-		if(this.mListeners.contains(pLockstepListener)){
-			this.mListeners.remove(pLockstepListener);
+	public void unsubscribeStepChangeListener(ILockstepStepChangeListener pLockstepListener) {
+		if (this.mStepChangeListeners.contains(pLockstepListener)) {
+			this.mStepChangeListeners.remove(pLockstepListener);
 		}
 	}
 	
+	@Override
+	public ILockstepNetwork getLockstepNetwork() {
+		return this.mLockstepNetwork;
+	}
+
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================
@@ -124,24 +173,26 @@ public class Lockstep implements ILockstepEngine{
 	// ===========================================================
 	// Methods
 	// ===========================================================
-	private void incrementGameStep(){
+	private void incrementGameStep() {
 		this.mCurrentGameStep++;
 		this.informGameStepChange();
 	}
-	
-	private void informGameStepChange(){
-		final int count = this.mListeners.size();
+
+	private void informGameStepChange() {
+		final int count = this.mStepChangeListeners.size();
 		for (int i = 0; i < count; i++) {
-			this.mListeners.get(i).lockstepStepChange(this.mCurrentGameStep);
+			this.mStepChangeListeners.get(i).lockstepStepChange(this.mCurrentGameStep);
 		}
 	}
-	
-	private void tickChangeOver(){
+
+	private void tickChangeOver() {
 		this.mCurrentTickLength = this.mNewTickLength;
 		this.mCurrentTickLengthNanoSeconds = this.mCurrentTickLength * this.NANOSECOND;
 	}
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================
+
+
 
 }

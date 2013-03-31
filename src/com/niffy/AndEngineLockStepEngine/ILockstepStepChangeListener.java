@@ -1,7 +1,5 @@
 package com.niffy.AndEngineLockStepEngine;
 
-
-public interface ILockstepListener {
-
+public interface ILockstepStepChangeListener {
 	public void lockstepStepChange(final int pGameStep);
 }
