@@ -57,6 +57,11 @@ public class UDPCommunicationThread extends CommunicationThread {
 	@Override
 	public void run() {
 		this.mRunning.set(true);
+		if(!this.mSentRunningMessage){
+			Message msg = this.mCallerThreadHandler.obtainMessage();
+			msg.what = ITCFlags.UDP_THREAD_START;
+			this.mCallerThreadHandler.sendMessage(msg);
+		}
 		android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DEFAULT);
 		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get() && !this.mIgnoreIncoming.get()) {
 			String pAddress = null;

@@ -18,6 +18,8 @@ public final class ITCFlags {
 	// ===========================================================
 	// Constants
 	// ===========================================================
+	public final static int TCP_THREAD_START = -1111;
+	public final static int UDP_THREAD_START = -1112;
 	/**
 	 * This will send from {@link CommunicationThread} to the main activity.
 	 * This will need to be passed onto {@link LockstepNetwork}<br>

@@ -56,7 +56,7 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	protected IPacketHandler mPacketHandler;
 	protected ArrayList<InetAddress> mClients;
 	protected MessagePool<IMessage> mMessagePool;
-
+	protected boolean mSentRunningMessage = false;
 	// ===========================================================
 	// Constructors
 	// ===========================================================
