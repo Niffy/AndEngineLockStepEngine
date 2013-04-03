@@ -20,6 +20,7 @@ import com.niffy.AndEngineLockStepEngine.flags.MessageFlag;
 import com.niffy.AndEngineLockStepEngine.messages.IMessage;
 import com.niffy.AndEngineLockStepEngine.messages.MessageAck;
 import com.niffy.AndEngineLockStepEngine.messages.MessageAckMulti;
+import com.niffy.AndEngineLockStepEngine.messages.MessageError;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
 import com.niffy.AndEngineLockStepEngine.packet.ack.AckWindowManager;
 import com.niffy.AndEngineLockStepEngine.packet.ack.IAckWindowManager;
@@ -64,15 +65,19 @@ public class PacketHandler implements IPacketHandler {
 			InetAddress addressCast = InetAddress.getByName(pAddress);
 			final ByteArrayInputStream bInput = new ByteArrayInputStream(pData);
 			DataInputStream dis = new DataInputStream(bInput);
+			final int version = dis.readInt();
 			final int sequence = dis.readInt();
 			final boolean requireAck = dis.readBoolean();
 			final int intended = dis.readInt();
 			final int flag = dis.readInt();
-			this.handleIncomingPacket(addressCast, sequence, requireAck, intended, flag, dis, pData);
+			this.handleIncomingPacket(addressCast, version, sequence, requireAck, intended, flag, dis, pData);
 		} catch (UnknownHostException e) {
-			e.printStackTrace();
+			log.error("Could not reconstruct data as could not cast address: {}", pAddress, e);
+			/* TODO handle error */
 		} catch (IOException e) {
-			e.printStackTrace();
+			log.error("Could not reconstruct data. Error with input stream. Address: {}", pAddress, e);
+			log.debug("Could not reconstruct data. Error with input stream. Data: {}", pData);
+			/* TODO handle error */
 		}
 	}
 
@@ -132,28 +137,11 @@ public class PacketHandler implements IPacketHandler {
 	// Methods
 	// ===========================================================
 
-	protected void handleIncomingPacket(final InetAddress pFrom, final int pSequence, final boolean pRequireAck,
-			final int pIntended, final int pFlag, final DataInputStream pDataInput, final byte[] pData)
-			throws IOException {
+	protected void handleIncomingPacket(final InetAddress pFrom, final int pVersion, final int pSequence,
+			final boolean pRequireAck, final int pIntended, final int pFlag, final DataInputStream pDataInput,
+			final byte[] pData) throws IOException {
 		if (!pRequireAck) {
 			/* An ack is not required for this message so carry on processing */
-			if (pFlag == MessageFlag.ACK) {
-				final int pAckFor = this.extractAckForSequence(pFrom, pSequence, pRequireAck, pIntended, pFlag,
-						pDataInput, pData);
-				if (pAckFor != -1) {
-					this.mAckManager.processReceivedAck(pFrom, pAckFor);
-				} else {
-					log.error("Could not get ack for from sequence: {} from: {}", pSequence, pFrom);
-				}
-			} else if (pFlag == MessageFlag.ACK_MULTI) {
-				final int[] pAckFor = this.extractAcksForSequence(pFrom, pSequence, pRequireAck, pIntended, pFlag,
-						pDataInput, pData);
-				if (pAckFor != null) {
-					this.mAckManager.processReceivedAck(pFrom, pAckFor);
-				} else {
-					log.error("Could not get acks for from sequence: {} from: {}", pSequence, pFrom);
-				}
-			}
 		} else {
 			/* An ack is required so send one! */
 			MessageAck ack = (MessageAck) this.obtainMessage(MessageFlag.ACK);
@@ -166,27 +154,31 @@ public class PacketHandler implements IPacketHandler {
 		}
 		if (pIntended == IntendedFlag.CLIENT) {
 			/* Packet is intended for client, pass back to thread to pass on */
-			this.passToClient(pFrom, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
+			this.passToClient(pFrom, pVersion, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
 		} else if (pIntended == IntendedFlag.LOCKSTEP) {
 			/* Packet is intended for lockstep, pass back to thread to pass on */
-			this.passToLockstep(pFrom, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
+			this.passToLockstep(pFrom, pVersion, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
 		} else if (pIntended == IntendedFlag.LOCKSTEP_CLIENT) {
 			/* Packet is for lockstep and client! */
-			this.passToLockstep(pFrom, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
-			this.passToClient(pFrom, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
+			this.passToLockstep(pFrom, pVersion, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
+			this.passToClient(pFrom, pVersion, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
+		} else if (pIntended == IntendedFlag.LOCKSTEP_CLIENT_NETWORK) {
+			/* Packet is for lockstep, client and network! */
+			this.passToLockstep(pFrom, pVersion, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
+			this.passToClient(pFrom, pVersion, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
+			this.passToNetwork(pFrom, pVersion, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
 		} else if (pIntended == IntendedFlag.NETWORK) {
-			/* Packet is intended for network, but we only deal with low level stuff! */
-			if (pFlag != MessageFlag.ACK || pFlag != MessageFlag.ACK_MULTI) {
-				log.warn("Unknown message intended for network to handle");
-			}
+			/* Packet is intended for network */
+			this.passToNetwork(pFrom, pVersion, pSequence, pRequireAck, pIntended, pFlag, pDataInput, pData);
 		} else {
-			Object[] pError = { pIntended, pFlag, pFrom };
-			log.warn("Unknown intended recipient: {0} Message Flag: {1} From: {2}", pError);
+			final Object[] pArray = { pVersion, pIntended, pFlag, pSequence, pFrom };
+			log.warn("Unknown intended recipient: Version: {} Intended: {} Flag: {} Sequence: {} From: {}", pArray);
 		}
 	}
 
-	protected void passToClient(final InetAddress pFrom, final int pSequence, final boolean pRequireAck,
-			final int pIntended, final int pFlag, final DataInputStream pDataInput, final byte[] pData) {
+	protected void passToClient(final InetAddress pFrom, final int pVersion, final int pSequence,
+			final boolean pRequireAck, final int pIntended, final int pFlag, final DataInputStream pDataInput,
+			final byte[] pData) {
 		Message msg = this.mThread.getParentHandler().obtainMessage();
 		msg.what = ITCFlags.RECIEVE_MESSAGE_CLIENT;
 		Bundle bundle = new Bundle();
@@ -196,19 +188,72 @@ public class PacketHandler implements IPacketHandler {
 		this.mThread.getParentHandler().sendMessage(msg);
 	}
 
-	protected void passToLockstep(final InetAddress pFrom, final int pSequence, final boolean pRequireAck,
-			final int pIntended, final int pFlag, final DataInputStream pDataInput, final byte[] pData) {
+	protected void passToLockstep(final InetAddress pFrom, final int pVersion, final int pSequence,
+			final boolean pRequireAck, final int pIntended, final int pFlag, final DataInputStream pDataInput,
+			final byte[] pData) {
 		Message msg = this.mThread.getParentHandler().obtainMessage();
 		msg.what = ITCFlags.RECIEVE_MESSAGE_LOCKSTEP;
 		Bundle bundle = new Bundle();
 		bundle.putString("ip", pFrom.toString());
+		bundle.putInt("flag", pFlag);
 		bundle.putByteArray("data", pData);
 		msg.setData(bundle);
 		this.mThread.getParentHandler().sendMessage(msg);
 	}
 
-	protected int extractAckForSequence(final InetAddress pFrom, final int pSequence, final boolean pRequireAck,
-			final int pIntended, final int pFlag, final DataInputStream pDataInput, final byte[] pData) {
+	protected void passToNetwork(final InetAddress pFrom, final int pVersion, final int pSequence,
+			final boolean pRequireAck, final int pIntended, final int pFlag, final DataInputStream pDataInput,
+			final byte[] pData) {
+		if (pFlag == MessageFlag.ERROR) {
+			this.reconstructErrorMessageAndHandle(pFrom, pVersion, pSequence, pRequireAck, pIntended, pFlag,
+					pDataInput, pData);
+		} else if (pFlag == MessageFlag.ACK) {
+			final int pAckFor = this.extractAckForSequence(pFrom, pVersion, pSequence, pRequireAck, pIntended, pFlag,
+					pDataInput, pData);
+			if (pAckFor != -1) {
+				this.mAckManager.processReceivedAck(pFrom, pAckFor);
+			} else {
+				final Object[] pArray = { pVersion, pIntended, pSequence, pFrom };
+				log.error(
+						"Could not handle ack message, could not determine the ack sequence. Version: {} Intended: {} Sequence: {} From: {}",
+						pArray);
+			}
+		} else if (pFlag == MessageFlag.ACK_MULTI) {
+			final int[] pAckFor = this.extractAcksForSequence(pFrom, pVersion, pSequence, pRequireAck, pIntended,
+					pFlag, pDataInput, pData);
+			if (pAckFor != null) {
+				this.mAckManager.processReceivedAck(pFrom, pAckFor);
+			} else {
+				final Object[] pArray = { pVersion, pIntended, pSequence, pFrom };
+				log.error(
+						"Could not handle ack multi message, could not determine the ack sequence. Version: {} Intended: {} Sequence: {} From: {}",
+						pArray);
+			}
+		} else {
+			final Object[] pArray = { pVersion, pIntended, pSequence, pFrom };
+			log.warn("Unknown message intended for network to handle. Version: {} Intended: {} Sequence: {} From: {}",
+					pArray);
+		}
+	}
+
+	protected void reconstructErrorMessageAndHandle(final InetAddress pFrom, final int pVersion, final int pSequence,
+			final boolean pRequireAck, final int pIntended, final int pFlag, final DataInputStream pDataInput,
+			final byte[] pData) {
+		MessageError pMessage = (MessageError) this.obtainMessage(pFlag);
+		try {
+			pMessage.read(pDataInput);
+			this.mThread.handleErrorMessage(pFrom, pMessage);
+			this.recycleMessage(pMessage);
+		} catch (IOException e) {
+			final Object[] pArray = { pVersion, pIntended, pSequence, pFrom };
+			log.error("Could not read in error message.  Version: {} Intended: {} Sequence: {} From: {}", pArray);
+			log.error("Error: ", e);
+		}
+	}
+
+	protected int extractAckForSequence(final InetAddress pFrom, final int pVersion, final int pSequence,
+			final boolean pRequireAck, final int pIntended, final int pFlag, final DataInputStream pDataInput,
+			final byte[] pData) {
 		int found = -1;
 		MessageAck ack = (MessageAck) this.obtainMessage(pFlag);
 		try {
@@ -216,14 +261,16 @@ public class PacketHandler implements IPacketHandler {
 			found = ack.getAckForSequence();
 			this.recycleMessage(ack);
 		} catch (IOException e) {
-			log.error("Could not read in ack for: {} from: {}", pSequence, pFrom);
+			final Object[] pArray = { pVersion, pIntended, pSequence, pFrom };
+			log.error("Could not read in ack.  Version: {} Intended: {} Sequence: {} From: {}", pArray);
 			log.error("Error: ", e);
 		}
 		return found;
 	}
 
-	protected int[] extractAcksForSequence(final InetAddress pFrom, final int pSequence, final boolean pRequireAck,
-			final int pIntended, final int pFlag, final DataInputStream pDataInput, final byte[] pData) {
+	protected int[] extractAcksForSequence(final InetAddress pFrom, final int pVersion, final int pSequence,
+			final boolean pRequireAck, final int pIntended, final int pFlag, final DataInputStream pDataInput,
+			final byte[] pData) {
 		int[] found = null;
 		MessageAckMulti ack = (MessageAckMulti) this.obtainMessage(pFlag);
 		try {
@@ -231,11 +278,13 @@ public class PacketHandler implements IPacketHandler {
 			found = ack.getSequences();
 			this.recycleMessage(ack);
 		} catch (IOException e) {
-			log.error("Could not read in ack for: {} from: {}", pSequence, pFrom);
+			final Object[] pArray = { pVersion, pIntended, pSequence, pFrom };
+			log.error("Could not read in acks.  Version: {} Intended: {} Sequence: {} From: {}", pArray);
 			log.error("Error: ", e);
 		}
 		return found;
 	}
+
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================

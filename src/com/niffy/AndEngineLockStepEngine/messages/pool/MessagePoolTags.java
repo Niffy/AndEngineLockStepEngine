@@ -54,4 +54,9 @@ public final class MessagePoolTags {
 	public final static String ENCAPSULATED_GROWTH_STRING = "ENCAPSULATED_GROWTH_STRING";
 	public final static int ENCAPSULATED_INITIAL_INT = 50;
 	public final static int ENCAPSULATED_GROWTH_INT = 50;
+	
+	public final static String CLIENT_OUT_OF_SYNC_INITIAL_STRING = "CLIENT_OUT_OF_SYNC_INITIAL_STRING";
+	public final static String CLIENT_OUT_OF_SYNC_GROWTH_STRING = "CLIENT_OUT_OF_SYNC_GROWTH_STRING";
+	public final static int CLIENT_OUT_OF_SYNC_INITIAL_INT = 10;
+	public final static int CLIENT_OUT_OF_SYNC_GROWTH_INT = 10;
 }

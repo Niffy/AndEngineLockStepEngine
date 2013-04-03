@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
 
+import com.niffy.AndEngineLockStepEngine.flags.ErrorCodes;
 import com.niffy.AndEngineLockStepEngine.flags.ITCFlags;
 import com.niffy.AndEngineLockStepEngine.flags.IntendedFlag;
 import com.niffy.AndEngineLockStepEngine.flags.MessageFlag;
@@ -23,6 +24,7 @@ import com.niffy.AndEngineLockStepEngine.messages.MessageClientJoin;
 import com.niffy.AndEngineLockStepEngine.messages.MessageEncapsulated;
 import com.niffy.AndEngineLockStepEngine.messages.MessageError;
 import com.niffy.AndEngineLockStepEngine.messages.MessageMigrate;
+import com.niffy.AndEngineLockStepEngine.messages.MessageOutOfSyncWith;
 import com.niffy.AndEngineLockStepEngine.messages.MessagePing;
 import com.niffy.AndEngineLockStepEngine.messages.MessagePingAck;
 import com.niffy.AndEngineLockStepEngine.messages.MessagePingHighest;
@@ -43,6 +45,7 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	// ===========================================================
 	// Fields
 	// ===========================================================
+	protected InetAddress mAddress;
 	protected WeakThreadHandler<IHandlerMessage> mCallerThreadHandler;
 	protected WeakThreadHandler<IHandlerMessage> mHandler;
 	protected Looper mLooper;
@@ -58,7 +61,9 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	// Constructors
 	// ===========================================================
 
-	public CommunicationThread(WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions) {
+	public CommunicationThread(final InetAddress pAddress, WeakThreadHandler<IHandlerMessage> pCaller,
+			final IBaseOptions pOptions) {
+		this.mAddress = pAddress;
 		this.mCallerThreadHandler = pCaller;
 		this.mBaseOptions = pOptions;
 		this.mClients = new ArrayList<InetAddress>();
@@ -104,8 +109,13 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	public void windowNotEmpty(InetAddress pAddress) {
 		if (this.mCallerThreadHandler != null) {
 			Message pMessage = this.mCallerThreadHandler.obtainMessage();
-			/* TODO produce error message to send to all */
+			pMessage.what = ITCFlags.NETWORK_ERROR;
+			Bundle bundle = new Bundle();
+			bundle.putString("ip", pAddress.toString());
+			bundle.putInt("error", ErrorCodes.CLIENT_WINDOW_NOT_EMPTY);
+			pMessage.setData(bundle);
 			this.mCallerThreadHandler.sendMessage(pMessage);
+			this.sendErrorMessage(ErrorCodes.CLIENT_WINDOW_NOT_EMPTY, IntendedFlag.NETWORK);
 		}
 	}
 
@@ -121,7 +131,7 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 
 	@Override
 	public void terminate() {
-		log.info("Terminating the thread");
+		log.warn("Terminating the thread");
 		if (!this.mTerminated.getAndSet(true)) {
 			this.mRunning.getAndSet(false);
 			this.interrupt();
@@ -134,8 +144,8 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	}
 
 	@Override
-	public void allowProcessing() {
-		this.mIgnoreIncoming.getAndSet(false);
+	public void setIgnoreIncoming(boolean pAllow) {
+		this.mIgnoreIncoming.getAndSet(pAllow);
 	}
 
 	@Override
@@ -158,7 +168,8 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	/**
 	 * Leave implementation to the subclasses
 	 * 
-	 * @return <code>0</code> as the packet handler should have generated this
+	 * @return <code>0</code> as the {@link IPacketHandler} should have
+	 *         generated this
 	 * @see com.niffy.AndEngineLockStepEngine.packet.ISendMessage#sendMessage(java.net.InetAddress,
 	 *      com.niffy.AndEngineLockStepEngine.messages.IMessage)
 	 */
@@ -175,6 +186,20 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	@Override
 	public <T extends IMessage> void recycleMessage(T pMessage) {
 		this.mMessagePool.recycleMessage(pMessage);
+	}
+
+	@Override
+	public void handleErrorMessage(InetAddress pAddress, MessageError pMessage) {
+		final int pErrorCode = pMessage.getErrorCode();
+		if (pErrorCode == ErrorCodes.CLIENT_WINDOW_NOT_EMPTY) {
+			Message msg = this.mCallerThreadHandler.obtainMessage();
+			msg.what = ITCFlags.CLIENT_WINDOW_NOT_EMPTY;
+			Bundle bundle = new Bundle();
+			bundle.putString("ip", pAddress.toString());
+			msg.setData(bundle);
+			this.mCallerThreadHandler.sendMessage(msg);
+			this.sendOutOfSyncMessage(pAddress);
+		}
 	}
 
 	// ===========================================================
@@ -204,9 +229,8 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 				this.sendMessageWithPacketHandler(pIntended, pAddressCast, pData);
 			} catch (UnknownHostException e) {
 				log.error("Could not cast: {} to an InetAddress", pAddress, e);
-				/*
-				 * TODO inform of error
-				 */
+				this.networkMessageFailure(pAddress, pData, ITCFlags.NETWORK_SEND_MESSAGE_FAILURE,
+						ErrorCodes.COULD_NOT_CAST_INETADDRESS);
 			}
 		}
 	}
@@ -249,6 +273,43 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 		for (int i = 0; i < pClientCount; i++) {
 			this.sendMessageWithPacketHandler(pIntended, this.mClients.get(i), pData);
 		}
+	}
+
+	protected void sendErrorMessage(final int pError, final int pIntended) {
+		MessageError pMessage = (MessageError) this.obtainMessage(MessageFlag.ERROR);
+		pMessage.setErrorCode(pError);
+		pMessage.setRequireAck(true);
+		pMessage.setIntended(pIntended);
+		final int pClientCount = this.mClients.size();
+		for (int i = 0; i < pClientCount; i++) {
+			this.mPacketHandler.sendMessage(this.mClients.get(i), pMessage);
+		}
+		this.recycleMessage(pMessage);
+	}
+
+	protected void networkMessageFailure(final String pAddress, final byte[] pData, final int pITCFlag,
+			final int pErrorCode) {
+		Message msg = this.mCallerThreadHandler.obtainMessage();
+		msg.what = pITCFlag;
+		Bundle bundle = new Bundle();
+		bundle.putString("ip", pAddress);
+		bundle.putInt("error", pErrorCode);
+		bundle.putByteArray("data", pData);
+		msg.setData(bundle);
+		this.mCallerThreadHandler.sendMessage(msg);
+	}
+
+	protected void sendOutOfSyncMessage(final InetAddress pAddress) {
+		MessageOutOfSyncWith pMessage = (MessageOutOfSyncWith) this.obtainMessage(MessageFlag.CLIENT_OUT_OF_SYNC);
+		pMessage.setRequireAck(true);
+		pMessage.setIntended(IntendedFlag.LOCKSTEP);
+		pMessage.setWhoIsOutOfSync(pAddress.toString());
+		pMessage.setSender(this.mAddress.toString());
+		final int pClientCount = this.mClients.size();
+		for (int i = 0; i < pClientCount; i++) {
+			this.mPacketHandler.sendMessage(this.mClients.get(i), pMessage);
+		}
+		this.recycleMessage(pMessage);
 	}
 
 	/**
@@ -333,6 +394,14 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.ENCAPSULATED_INITIAL_INT;
 		pFlag = MessageFlag.ENCAPSULATED;
 		pMessageClass = MessageEncapsulated.class;
+		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
+
+		pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.CLIENT_OUT_OF_SYNC_INITIAL_STRING);
+		pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.CLIENT_OUT_OF_SYNC_GROWTH_STRING);
+		pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.CLIENT_OUT_OF_SYNC_INITIAL_INT;
+		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.CLIENT_OUT_OF_SYNC_INITIAL_INT;
+		pFlag = MessageFlag.CLIENT_OUT_OF_SYNC;
+		pMessageClass = MessageOutOfSyncWith.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
 	}
 	// ===========================================================

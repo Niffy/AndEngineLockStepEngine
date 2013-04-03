@@ -11,15 +11,9 @@ import com.niffy.AndEngineLockStepEngine.flags.IntendedFlag;
 /**
  * (c) 2010 Nicolas Gramlich (c) 2011 Zynga Inc. (c) 2013 Paul Robinson
  * 
- * <br>
- * {@link #write(DataOutputStream)} is first called, this will write
- * {@link #mFlag} and then {@link #mSequenceNumber} before handing over to
- * {@link #onWriteTransmissionData(DataOutputStream)} <br>
- * <b>BEFORE</b> calling {@link #read(DataInputStream)} you must first call
- * {@link DataInputStream#readShort()} and {@link DataInputStream#readInt()}.
- * Short is the message flag, int is the sequence.
- * {@link #onReadTransmissionData(DataInputStream)}
+ * The contents of a basic message is at least 16.125 bytes (129 bits / 8)
  * 
+ * @see IMessage
  * @author Nicolas Gramlich
  * @since 15:27:13 - 18.09.2009
  */
@@ -35,6 +29,7 @@ public abstract class Message implements IMessage {
 	protected int mIntended = IntendedFlag.CLIENT;
 	protected int mFlag = -1;
 	protected boolean mRequireACK = true;
+	protected int mVersion = -1;
 
 	// ===========================================================
 	// Constructors
@@ -59,6 +54,7 @@ public abstract class Message implements IMessage {
 	}
 
 	public Message(Parcel in) {
+		this.mVersion = in.readInt();
 		this.mSequenceNumber = in.readInt();
 		this.mRequireACK = in.readByte() == 1;
 		this.mIntended = in.readInt();
@@ -118,6 +114,16 @@ public abstract class Message implements IMessage {
 	}
 
 	@Override
+	public void setVersion(int pVersion) {
+		this.mVersion = pVersion;
+	}
+
+	@Override
+	public int getVersion() {
+		return this.mVersion;
+	}
+
+	@Override
 	public int getMessageFlag() {
 		return this.mFlag;
 	}
@@ -129,6 +135,7 @@ public abstract class Message implements IMessage {
 
 	@Override
 	public void write(final DataOutputStream pDataOutputStream) throws IOException {
+		pDataOutputStream.writeInt(this.mVersion);
 		pDataOutputStream.writeInt(this.mSequenceNumber);
 		pDataOutputStream.writeBoolean(this.mRequireACK);
 		pDataOutputStream.writeInt(this.mIntended);
@@ -174,6 +181,7 @@ public abstract class Message implements IMessage {
 
 	@Override
 	public void writeToParcel(Parcel dest, int flags) {
+		dest.writeInt(this.mVersion);
 		dest.writeInt(this.mSequenceNumber);
 		dest.writeByte((byte) (this.mRequireACK ? 1 : 0));
 		dest.writeInt(this.mIntended);

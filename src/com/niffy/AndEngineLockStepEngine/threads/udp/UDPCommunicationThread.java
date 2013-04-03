@@ -1,21 +1,18 @@
-package com.niffy.AndEngineLockStepEngine.threads.tcp;
+package com.niffy.AndEngineLockStepEngine.threads.udp;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.os.Bundle;
-import android.os.Looper;
 import android.os.Message;
 
 import com.niffy.AndEngineLockStepEngine.flags.ErrorCodes;
@@ -26,24 +23,32 @@ import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
 import com.niffy.AndEngineLockStepEngine.threads.CommunicationThread;
 
-public class TCPCommunicationThread extends CommunicationThread {
+public class UDPCommunicationThread extends CommunicationThread {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private final Logger log = LoggerFactory.getLogger(TCPCommunicationThread.class);
+	private final Logger log = LoggerFactory.getLogger(UDPCommunicationThread.class);
 
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	protected HashMap<InetAddress, IBaseSocketThread> mSockets;
-	protected ServerSocket mServerTCPSocket;
+	protected int mBufferSize = 512;
+	protected DatagramSocket mSocket = null;
 
 	// ===========================================================
 	// Constructors
 	// ===========================================================
 
-	public TCPCommunicationThread(final InetAddress pAddress, WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions) {
+	public UDPCommunicationThread(final InetAddress pAddress, WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions)
+			throws SocketException {
 		super(pAddress, pCaller, pOptions);
+		this.mBufferSize = this.mBaseOptions.getNetworkBufferSize();
+		try {
+			this.mSocket = new DatagramSocket(this.mBaseOptions.getUDPPort());
+		} catch (SocketException e) {
+			log.error("Socket exception on creating datagram socket", e);
+			throw e;
+		}
 	}
 
 	// ===========================================================
@@ -54,23 +59,29 @@ public class TCPCommunicationThread extends CommunicationThread {
 		this.mRunning.set(true);
 		android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DEFAULT);
 		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get() && !this.mIgnoreIncoming.get()) {
+			String pAddress = null;
+			byte[] pData = null;
 			try {
-				log.info("Accepting socket..");
-				final Socket client = this.mServerTCPSocket.accept();
-				InetAddress pClientAddress = client.getInetAddress();
-				BaseSocketThread clientThread = new BaseSocketThread(this.getHandler(), client,
-						pClientAddress.toString(), Looper.getMainLooper());
-				clientThread.start();
-				this.mSockets.put(client.getInetAddress(), clientThread);
-				this.mClients.add(pClientAddress);
-				log.info("Accepted: {}", pClientAddress.toString());
-				this.clientJoin(pClientAddress);
+				byte[] buf = new byte[this.mBufferSize];
+				DatagramPacket packet = new DatagramPacket(buf, buf.length);
+				this.mSocket.receive(packet);
+				pAddress = packet.getAddress().toString();
+				pData = packet.getData();
+				/*
+				TODO do we need to have streams here?
+				final ByteArrayInputStream bInput = new ByteArrayInputStream(packet.getData());
+				final DataInputStream dInput = new DataInputStream(bInput);
+				*/
+				this.mPacketHandler.reconstructData(packet.getAddress().toString(), packet.getData());
 			} catch (IOException e) {
-				log.error("Error with accepting on TCP socket", e);
+				log.error("Error reading in UDP data", e);
+				this.networkMessageFailure(pAddress, pData, ITCFlags.NETWORK_RECIEVE_FAILURE,
+						ErrorCodes.COULD_NOT_RECEIVE);
 			}
 		}
 	}
 
+	@SuppressWarnings("unused")
 	@Override
 	public void handlePassedMessage(Message pMessage) {
 		log.debug("Handling message: {}", pMessage.what);
@@ -79,47 +90,35 @@ public class TCPCommunicationThread extends CommunicationThread {
 		String ip;
 		byte[] data;
 		switch (pMessage.what) {
-		case ITCFlags.TCP_CLIENT_INCOMMING:
+		case ITCFlags.CLIENT_CONNECTED:
 			bundle = pMessage.getData();
 			ip = bundle.getString("ip");
-			data = bundle.getByteArray("data");
-			this.mPacketHandler.reconstructData(ip, data);
+			this.clientJoin(ip);
 			break;
-		case ITCFlags.NETWORK_TCP_EXCEPTION:
+		case ITCFlags.CLIENT_DISCONNECTED:
 			bundle = pMessage.getData();
 			ip = bundle.getString("ip");
 			this.clientDisconect(ip);
-			Message msg = this.mCallerThreadHandler.obtainMessage();
-			msg.what = ITCFlags.CLIENT_DISCONNECTED;
-			msg.setData(bundle);
-			this.mCallerThreadHandler.sendMessage(msg);
+			break;
 		}
 	}
 
 	@Override
 	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage) {
-		byte[] pData = null;
 		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get() && !this.mIgnoreIncoming.get()) {
-			IBaseSocketThread clientThread = this.mSockets.get(pAddress);
-			if (clientThread != null) {
-				try {
-					final ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
-					final DataOutputStream dOutput = new DataOutputStream(bOutput);
-					pMessage.write(dOutput);
-					dOutput.flush();
-					bOutput.flush();
-					pData = bOutput.toByteArray();
-					Message msg = clientThread.getHandler().obtainMessage();
-					msg.what = ITCFlags.TCP_CLIENT_OUTGOING;
-					Bundle bundle = new Bundle();
-					bundle.putByteArray("data", bOutput.toByteArray());
-					msg.setData(bundle);
-					clientThread.getHandler().sendMessage(msg);
-				} catch (IOException e) {
-					log.error("Error sending TCP message to client thread: {}", pAddress, e);
-					this.networkMessageFailure(pAddress.toString(), pData, ITCFlags.NETWORK_SEND_MESSAGE_FAILURE,
-							ErrorCodes.COULD_NOT_SEND);
-				}
+			byte[] buf = new byte[this.mBufferSize];
+			final ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
+			final DataOutputStream dOutput = new DataOutputStream(bOutput);
+			try {
+				pMessage.write(dOutput);
+				dOutput.flush();
+				buf = bOutput.toByteArray();
+				DatagramPacket packet = new DatagramPacket(buf, buf.length, pAddress, this.mBaseOptions.getUDPPort());
+				this.mSocket.send(packet);
+			} catch (IOException e) {
+				log.error("Could not send packet", e);
+				this.networkMessageFailure(pAddress.toString(), buf, ITCFlags.NETWORK_SEND_MESSAGE_FAILURE,
+						ErrorCodes.COULD_NOT_SEND);
 			}
 		}
 		return 0;
@@ -142,22 +141,9 @@ public class TCPCommunicationThread extends CommunicationThread {
 
 	@Override
 	public void terminate() {
-		log.warn("Terminating the thread");
-		try {
-			if (!this.mTerminated.getAndSet(true)) {
-				this.mRunning.getAndSet(false);
-				this.mServerTCPSocket.close();
-				Iterator<Entry<InetAddress, IBaseSocketThread>> entries = this.mSockets.entrySet().iterator();
-				while (entries.hasNext()) {
-					Entry<InetAddress, IBaseSocketThread> entry = entries.next();
-					Message msg = entry.getValue().getHandler().obtainMessage();
-					msg.what = ITCFlags.NETWORK_TCP_SHUTDOWN_SOCKET;
-					entry.getValue().getHandler().sendMessage(msg);
-				}
-				this.interrupt();
-			}
-		} catch (IOException e) {
-			log.error("Exception when shuting down the TCP thread", e);
+		if (!this.mTerminated.getAndSet(true)) {
+			this.mRunning.getAndSet(false);
+			this.mSocket.close();
 		}
 	}
 
@@ -168,14 +154,13 @@ public class TCPCommunicationThread extends CommunicationThread {
 	// ===========================================================
 	// Methods
 	// ===========================================================
-
-	protected void clientJoin(final InetAddress pAddress) {
-		this.mPacketHandler.addClient(pAddress);
-		Message msg = this.mCallerThreadHandler.obtainMessage();
-		msg.what = ITCFlags.CLIENT_CONNECTED;
-		final Bundle pBundle = new Bundle();
-		pBundle.putString("ip", pAddress.toString());
-		this.mCallerThreadHandler.sendMessage(msg);
+	protected void clientJoin(final String pAddress) {
+		try {
+			InetAddress addressCast = InetAddress.getByName(pAddress);
+			this.addClient(addressCast);
+		} catch (UnknownHostException e) {
+			log.error("Could not join client as could not cast address: {}", pAddress, e);
+		}
 	}
 
 	protected void clientDisconect(final String pAddress) {
@@ -189,4 +174,5 @@ public class TCPCommunicationThread extends CommunicationThread {
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================
+
 }

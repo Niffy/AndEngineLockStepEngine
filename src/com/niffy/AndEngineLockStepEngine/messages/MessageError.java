@@ -8,6 +8,8 @@ import java.io.UnsupportedEncodingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.niffy.AndEngineLockStepEngine.flags.ErrorCodes;
+
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -21,6 +23,7 @@ public class MessageError extends Message {
 	// ===========================================================
 	// Fields
 	// ===========================================================
+	protected int mErrorCode = -1;
 	protected String mString = "Error:";
 	protected int mStringSize;
 	protected byte[] mStringData;
@@ -47,6 +50,7 @@ public class MessageError extends Message {
 
 	public MessageError(Parcel in) {
 		super(in);
+		this.mErrorCode = in.readInt();
 		this.mString = in.readString();
 		this.mStringSize = in.readInt();
 		in.readByteArray(this.mStringData);
@@ -58,6 +62,7 @@ public class MessageError extends Message {
 
 	@Override
 	protected void onReadTransmissionData(DataInputStream pDataInputStream) throws IOException {
+		this.mErrorCode = pDataInputStream.readInt();
 		this.mStringSize = pDataInputStream.readInt();
 		this.mStringData = new byte[this.mStringSize];
 		pDataInputStream.read(this.mStringData, 0, this.mStringSize);
@@ -67,6 +72,7 @@ public class MessageError extends Message {
 
 	@Override
 	protected void onWriteTransmissionData(DataOutputStream pDataOutputStream) throws IOException {
+		pDataOutputStream.writeInt(this.mErrorCode);
 		pDataOutputStream.writeInt(this.mStringSize);
 		pDataOutputStream.write(this.mStringData);
 	}
@@ -74,6 +80,7 @@ public class MessageError extends Message {
 	@Override
 	public void writeToParcel(Parcel dest, int flags) {
 		super.writeToParcel(dest, flags);
+		dest.writeInt(this.mErrorCode);
 		dest.writeString(this.mString);
 		dest.writeInt(this.mStringSize);
 		dest.writeByteArray(this.mStringData);
@@ -94,6 +101,22 @@ public class MessageError extends Message {
 
 	public String getString() {
 		return this.mString;
+	}
+
+	/**
+	 * @see {@link ErrorCodes}
+	 * @param pErrorCode
+	 */
+	public void setErrorCode(final int pErrorCode) {
+		this.mErrorCode = pErrorCode;
+	}
+
+	/**
+	 * @see {@link ErrorCodes}
+	 * @param pErrorCode
+	 */
+	public int getErrorCode() {
+		return this.mErrorCode;
 	}
 
 	// ===========================================================

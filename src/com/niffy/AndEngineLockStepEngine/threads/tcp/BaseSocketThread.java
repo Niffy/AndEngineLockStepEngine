@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,7 @@ import android.os.Message;
 import com.niffy.AndEngineLockStepEngine.flags.ITCFlags;
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
+
 @SuppressWarnings("static-access")
 public class BaseSocketThread extends Thread implements IBaseSocketThread, IHandlerMessage {
 	// ===========================================================
@@ -32,6 +34,8 @@ public class BaseSocketThread extends Thread implements IBaseSocketThread, IHand
 	protected WeakThreadHandler<IHandlerMessage> mHandler;
 	protected String mName;
 	protected Looper mLooper;
+	protected final AtomicBoolean mRunning = new AtomicBoolean(false);
+	protected final AtomicBoolean mTerminated = new AtomicBoolean(false);
 
 	// ===========================================================
 	// Constructors
@@ -62,18 +66,15 @@ public class BaseSocketThread extends Thread implements IBaseSocketThread, IHand
 	}
 
 	@Override
-	public void terminate() throws IOException {
-		this.mSocket.close();
-	}
-
-	@Override
 	public void run() {
 		Looper.prepare();
 		if (this.mHandler == null) {
+			log.debug("Created thread handler in run");
 			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, this.mLooper.myLooper());
 		}
 		log.debug("{} socket thread running", this.mName);
-		while (!Thread.interrupted()) {
+		this.mRunning.set(true);
+		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get()) {
 			try {
 				InputStream in = this.mSocket.getInputStream();
 				DataInputStream dis = new DataInputStream(in);
@@ -83,12 +84,13 @@ public class BaseSocketThread extends Thread implements IBaseSocketThread, IHand
 				}
 			} catch (IOException e) {
 				log.error("Could not read in bytes from socket", e);
+				this.postErrorToTCPThread();
 				this.interrupt();
 			}
 		}
 		Looper.loop();
 	}
-	
+
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================
@@ -108,8 +110,8 @@ public class BaseSocketThread extends Thread implements IBaseSocketThread, IHand
 	}
 
 	protected void postToMainThread(final byte[] pData) {
-		//String rawData = Arrays.toString(pData);
-		//log.debug("{} postToMainThread Raw Data: {}", this.mName, rawData);
+		// String rawData = Arrays.toString(pData);
+		// log.debug("{} postToMainThread Raw Data: {}", this.mName, rawData);
 		Bundle bundle = new Bundle();
 		bundle.putString("ip", this.mSocket.getInetAddress().getHostAddress());
 		bundle.putByteArray("data", pData);
@@ -126,12 +128,14 @@ public class BaseSocketThread extends Thread implements IBaseSocketThread, IHand
 		pDos.write(pData);
 		pDos.flush();
 		pOut.flush();
-		//String rawData = Arrays.toString(pData);
-		//log.debug("{} send Raw Data: {}", this.mName, rawData);
+		// String rawData = Arrays.toString(pData);
+		// log.debug("{} send Raw Data: {}", this.mName, rawData);
 	}
 
+	@Override
 	public void handlePassedMessage(Message pMessage) {
-		//log.debug("{} Handling client socket message from parent", this.mName);
+		// log.debug("{} Handling client socket message from parent",
+		// this.mName);
 		Bundle bundle;
 		switch (pMessage.what) {
 		case ITCFlags.TCP_CLIENT_OUTGOING:
@@ -142,9 +146,31 @@ public class BaseSocketThread extends Thread implements IBaseSocketThread, IHand
 				log.error("Could not send data to client", e);
 			}
 			break;
+		case ITCFlags.NETWORK_TCP_SHUTDOWN_SOCKET:
+			this.shutdownThread();
+			break;
 		}
 	}
 
+	protected void postErrorToTCPThread() {
+		Message msg = this.mParentHandler.obtainMessage();
+		msg.what = ITCFlags.NETWORK_TCP_EXCEPTION;
+		Bundle bundle = new Bundle();
+		bundle.putString("ip", this.mSocket.getInetAddress().getHostAddress());
+		this.mParentHandler.sendMessage(msg);
+	}
+
+	protected void shutdownThread() {
+		try {
+			if (!this.mTerminated.getAndSet(true)) {
+				this.mRunning.getAndSet(false);
+				this.mSocket.close();
+				this.interrupt();
+			}
+		} catch (IOException e) {
+			log.error("Error shutting down socket thread", e);
+		}
+	}
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================

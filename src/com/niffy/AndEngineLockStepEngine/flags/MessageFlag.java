@@ -24,4 +24,5 @@ public final class MessageFlag {
 
 	public final static int CLIENT_JOIN = 30;
 	public final static int CLIENT_DISCONNECTED = 31;
+	public final static int CLIENT_OUT_OF_SYNC = 32;
 }

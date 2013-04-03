@@ -7,13 +7,14 @@ import com.niffy.AndEngineLockStepEngine.messages.IMessage;
 
 public interface ISendMessage {
 	/**
-	 * Send a message to a client
+	 * Send a message to a client. This should be called from
+	 * {@link IPacketHandler}
 	 * 
 	 * @param pAddress
 	 *            {@link InetAddress} of client to contact.
 	 * @param pMessage
 	 *            Message to send, <b>MUST</b> extend {@link IMessage}
-	 * @return {@link Integer} of sequence number used when sending the packet.
+	 * @return {@link IPacketHandler} should have handled this.
 	 */
 	public <T extends IMessage> int sendMessage(final InetAddress pAddress, final T pMessage);
 

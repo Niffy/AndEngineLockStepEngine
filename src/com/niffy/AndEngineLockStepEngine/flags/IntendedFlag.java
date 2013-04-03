@@ -12,9 +12,7 @@ public final class IntendedFlag {
 	// ===========================================================
 	public final static int LOCKSTEP = 0;
 	public final static int CLIENT = 1;
-	/**
-	 * THIS IS FOR BOTH {@link #LOCKSTEP} and {@link #CLIENT} <br>
-	 */
-	public final static int LOCKSTEP_CLIENT = 2;
-	public final static int NETWORK = 3;
+	public final static int NETWORK = 2;
+	public final static int LOCKSTEP_CLIENT = 3;
+	public final static int LOCKSTEP_CLIENT_NETWORK = 4;
 }

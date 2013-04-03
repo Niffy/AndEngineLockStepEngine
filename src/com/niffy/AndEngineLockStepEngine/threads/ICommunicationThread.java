@@ -3,6 +3,7 @@ package com.niffy.AndEngineLockStepEngine.threads;
 import java.net.InetAddress;
 import java.util.ArrayList;
 
+import com.niffy.AndEngineLockStepEngine.messages.MessageError;
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 import com.niffy.AndEngineLockStepEngine.packet.ISendMessage;
@@ -23,11 +24,13 @@ public interface ICommunicationThread extends IHandlerMessage, IGenericWindowCri
 	public boolean isIgnoring();
 
 	/**
-	 * Allow processing of incoming data. if {@link #isIgnoring()} is
-	 * <code>true</code> then it will be set to <code>false</code> to accept
-	 * incoming data
+	 * Allow processing of incoming data. Set to <code>false</code> to allow
+	 * processing, <code>true</code> to ignore incoming data.
+	 * 
+	 * @param pAllow
+	 *            {@link Boolean} Allow processing if coming data.
 	 */
-	public void allowProcessing();
+	public void setIgnoreIncoming(final boolean pAllow);
 
 	public void terminate();
 
@@ -36,4 +39,6 @@ public interface ICommunicationThread extends IHandlerMessage, IGenericWindowCri
 	public ArrayList<InetAddress> getClients();
 
 	public void removeClient(final InetAddress pAddress);
+
+	public void handleErrorMessage(final InetAddress pAddress, final MessageError pMessage);
 }

@@ -62,6 +62,7 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	 * Started the UDP lockstep? If false probably doing TCP stages.
 	 */
 	protected boolean mStarted = false;
+	protected ILockstepClientListener mLockstepClientListener;
 
 	// ===========================================================
 	// Constructors
@@ -69,9 +70,10 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	/**
 	 * 
 	 */
-	public Lockstep() {
+	public Lockstep(final ILockstepClientListener pLockstepClientListener) {
 		this.mStepChangeListeners = new ArrayList<ILockstepStepChangeListener>();
 		this.mLockstepNetwork = new LockstepNetwork(this);
+		this.mLockstepClientListener = pLockstepClientListener;
 	}
 
 	// ===========================================================
@@ -97,6 +99,19 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 				this.mSecondsElapsedAccumulator -= this.mCurrentTickLengthNanoSeconds;
 			}
 		}
+	}
+
+	@Override
+	public void startInitialCommunications() {
+		this.mLockstepNetwork.ignoreTCPCommunication(false);
+	}
+
+	@Override
+	public void migrate() {
+		this.mLockstepNetwork.migrate();
+		/*
+		 * TODO send migrate message
+		 */
 	}
 
 	@Override
@@ -160,10 +175,15 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 			this.mStepChangeListeners.remove(pLockstepListener);
 		}
 	}
-	
+
 	@Override
 	public ILockstepNetwork getLockstepNetwork() {
 		return this.mLockstepNetwork;
+	}
+	
+	@Override
+	public ILockstepClientListener getLockstepClientListener(){
+		return this.mLockstepClientListener;
 	}
 
 	// ===========================================================
@@ -192,7 +212,5 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================
-
-
 
 }

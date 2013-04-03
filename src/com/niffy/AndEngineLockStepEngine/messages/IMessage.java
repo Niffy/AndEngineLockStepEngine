@@ -20,6 +20,20 @@ public interface IMessage extends Parcelable {
 	// Methods
 	// ===========================================================
 	/**
+	 * Set the version number of network library code.
+	 * 
+	 * @param pVersion
+	 */
+	public void setVersion(final int pVersion);
+
+	/**
+	 * Get the version number of network library code.
+	 * 
+	 * @return
+	 */
+	public int getVersion();
+
+	/**
 	 * {@link MessageFlag} of what the message is
 	 * 
 	 * @return
@@ -76,19 +90,22 @@ public interface IMessage extends Parcelable {
 	public boolean getRequireAck();
 
 	/**
-	 * Before reading in a message, you should do read it in the follow way.
+	 * Before reading in a message, you should do read it in the follow way. *
 	 * <ol>
-	 * 1. {@link DataInputStream#readInt()} read in the message sequence.
+	 * 1. {@link DataInputStream#readInt()} read in the network library version.
 	 * </ol>
 	 * <ol>
-	 * 2. {@link DataInputStream#readBoolean()} read in if the message requires
-	 * an ack
+	 * 2. {@link DataInputStream#readInt()} read in the message sequence.
 	 * </ol>
 	 * <ol>
-	 * 3. {@link DataInputStream#readInt()} to get the intended flag.
+	 * 3. {@link DataInputStream#readBoolean()} read in if the message requires
+	 * an ack.
 	 * </ol>
 	 * <ol>
-	 * 4. {@link DataInputStream#readInt()} to get the message flag.
+	 * 4. {@link DataInputStream#readInt()} to get the intended flag.
+	 * </ol>
+	 * <ol>
+	 * 5. {@link DataInputStream#readInt()} to get the message flag.
 	 * </ol>
 	 * Once the steps have been completed you can then call this to read the
 	 * message into the correct object.
@@ -99,15 +116,22 @@ public interface IMessage extends Parcelable {
 	public void read(final DataInputStream pDataInputStream) throws IOException;
 
 	/**
-	 * This will write in the following order
+	 * This will write in the following order *
 	 * <ol>
-	 * 1. {@link DataOutputStream#writeInt(int)} for the sequence number. flag.
+	 * 1. {@link DataOutputStream#writeInt(int)} for the network library version
 	 * </ol>
 	 * <ol>
-	 * 2. {@link DataOutputStream#writeInt(int)} for writing the intended flag.
+	 * 2. {@link DataOutputStream#writeInt(int)} for the sequence number. flag.
 	 * </ol>
 	 * <ol>
-	 * 3. {@link DataOutputStream#writeInt(int)} for writing the message flag.
+	 * 3. {@link DataOutputStream#writeBoolean(boolean)} if the message requires
+	 * an ack.
+	 * </ol>
+	 * <ol>
+	 * 4. {@link DataOutputStream#writeInt(int)} for writing the intended flag.
+	 * </ol>
+	 * <ol>
+	 * 5. {@link DataOutputStream#writeInt(int)} for writing the message flag.
 	 * </ol>
 	 * Writing will then be passed to
 	 * {@link #onWriteTransmissionData(DataOutputStream)}
