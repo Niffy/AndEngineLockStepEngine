@@ -24,7 +24,7 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	/**
 	 * Accumulator to count ticks.
 	 */
-	protected long mSecondsElapsedAccumulator = 0;
+	protected float mSecondsElapsedAccumulator = 0;
 	/**
 	 * Listeners to update when the game step changes.
 	 */
@@ -93,7 +93,7 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	// Methods for/from SuperClass/Interfaces ILockstepEngine
 	// ===========================================================
 	@Override
-	public void onUpdate(long pNanosecondsElapsed) {
+	public void onUpdate(float pNanosecondsElapsed) {
 		if (this.mStarted) {
 			this.mSecondsElapsedAccumulator += pNanosecondsElapsed;
 			while (this.mSecondsElapsedAccumulator >= this.mCurrentTickLengthNanoSeconds) {
