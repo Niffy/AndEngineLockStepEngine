@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import android.os.Message;
 
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
+import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
 
 public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	// ===========================================================
@@ -38,7 +39,7 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	protected long mStandardTickLength = 50;
 	/**
 	 * Current tick length. {@link #mStandardTickLength} +
-	 * {@link #mServerTickLength}
+	 * {@link #mNewTickLength}
 	 */
 	protected long mCurrentTickLength = 0;
 	/**
@@ -50,7 +51,7 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	 */
 	protected int mGameStepChangeOver = 0;
 	/**
-	 * New tick length to use.
+	 * New tick length to use. Excluding {@link #mStandardTickLength}
 	 */
 	protected long mNewTickLength = 0;
 	/**
@@ -63,6 +64,7 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	 */
 	protected boolean mStarted = false;
 	protected ILockstepClientListener mLockstepClientListener;
+	protected IBaseOptions mBaseOptions;
 
 	// ===========================================================
 	// Constructors
@@ -70,10 +72,13 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	/**
 	 * 
 	 */
-	public Lockstep(final ILockstepClientListener pLockstepClientListener) {
+	public Lockstep(final ILockstepClientListener pLockstepClientListener, IBaseOptions pBaseOptions) {
 		this.mStepChangeListeners = new ArrayList<ILockstepStepChangeListener>();
-		this.mLockstepNetwork = new LockstepNetwork(this);
+		this.mLockstepNetwork = new LockstepNetwork(this, pBaseOptions);
 		this.mLockstepClientListener = pLockstepClientListener;
+		this.mBaseOptions = pBaseOptions;
+		this.mStandardTickLength = this.mBaseOptions.getStandardTickLength();
+		/* TODO create Ping RTT Client*/
 	}
 
 	// ===========================================================
@@ -81,7 +86,7 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	// ===========================================================
 	@Override
 	public void handlePassedMessage(Message pMessage) {
-
+		this.mLockstepNetwork.handlePassedMessage(pMessage);
 	}
 
 	// ===========================================================
@@ -103,15 +108,16 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 
 	@Override
 	public void startInitialCommunications() {
-		this.mLockstepNetwork.ignoreTCPCommunication(false);
+		if (this.mLockstepNetwork.allRunning()) {
+			this.mLockstepNetwork.ignoreTCPCommunication(false);
+		} else {
+			/* TODO throw error! */
+		}
 	}
 
 	@Override
 	public void migrate() {
 		this.mLockstepNetwork.migrate();
-		/*
-		 * TODO send migrate message
-		 */
 	}
 
 	@Override
@@ -127,7 +133,7 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	@Override
 	public void pause() {
 		/*
-		 * TODO implement pause 
+		 * TODO implement pause
 		 */
 	}
 
@@ -180,9 +186,9 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	public ILockstepNetwork getLockstepNetwork() {
 		return this.mLockstepNetwork;
 	}
-	
+
 	@Override
-	public ILockstepClientListener getLockstepClientListener(){
+	public ILockstepClientListener getLockstepClientListener() {
 		return this.mLockstepClientListener;
 	}
 

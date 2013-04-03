@@ -1,7 +1,7 @@
 package com.niffy.AndEngineLockStepEngine;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -19,6 +19,7 @@ import com.niffy.AndEngineLockStepEngine.flags.MessageFlag;
 import com.niffy.AndEngineLockStepEngine.messages.IMessage;
 import com.niffy.AndEngineLockStepEngine.messages.MessageMigrate;
 import com.niffy.AndEngineLockStepEngine.messages.pool.MessagePool;
+import com.niffy.AndEngineLockStepEngine.messages.pool.MessagePoolTags;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
 import com.niffy.AndEngineLockStepEngine.threads.ICommunicationThread;
 
@@ -35,14 +36,18 @@ public class LockstepNetwork implements ILockstepNetwork {
 	protected ICommunicationThread mUDP;
 	protected ICommunicationThread mTCP;
 	protected ArrayList<InetAddress> mClients;
+	protected IBaseOptions mBaseOptions;
 	protected MessagePool<IMessage> mMessagePool;
+
 	// ===========================================================
 	// Constructors
 	// ===========================================================
 
 	public LockstepNetwork(ILockstepEngine pLockstepEngine, IBaseOptions pBaseOptions) {
 		this.mLockstepEngine = pLockstepEngine;
+		this.mBaseOptions = pBaseOptions;
 		this.mClients = new ArrayList<InetAddress>();
+		this.producePoolItems();
 	}
 
 	// ===========================================================
@@ -88,6 +93,16 @@ public class LockstepNetwork implements ILockstepNetwork {
 	}
 
 	@Override
+	public ICommunicationThread getTCPThread() {
+		return this.mTCP;
+	}
+
+	@Override
+	public ICommunicationThread getUDPThread() {
+		return this.mUDP;
+	}
+
+	@Override
 	public void ignoreTCPCommunication(boolean pIgnore) {
 		this.mTCP.setIgnoreIncoming(pIgnore);
 	}
@@ -95,6 +110,11 @@ public class LockstepNetwork implements ILockstepNetwork {
 	@Override
 	public void ignoreUDPCommunication(boolean pIgnore) {
 		this.mUDP.setIgnoreIncoming(pIgnore);
+	}
+
+	@Override
+	public void setMainCommunicationThread(ICommunicationThread pThread) {
+		this.mCommunicationThread = pThread;
 	}
 
 	@Override
@@ -122,9 +142,8 @@ public class LockstepNetwork implements ILockstepNetwork {
 
 	@Override
 	public void migrate() {
-		this.ignoreTCPCommunication(true);
-		this.ignoreUDPCommunication(false);
 		this.sendMigrateMessage();
+		this.triggerMigrate();
 	}
 
 	@Override
@@ -148,6 +167,41 @@ public class LockstepNetwork implements ILockstepNetwork {
 		} else {
 			log.warn("Client is not in the list to remove: {}", pAddress);
 		}
+	}
+
+	@Override
+	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage) {
+		byte[] buf = null;
+		final ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
+		final DataOutputStream dOutput = new DataOutputStream(bOutput);
+		try {
+			pMessage.write(dOutput);
+			dOutput.flush();
+			buf = bOutput.toByteArray();
+		} catch (IOException e) {
+			log.error("Could not pass packet to communication thread", e);
+			/* TODO handle error */
+			return -1;
+		}
+		Bundle pData = new Bundle();
+		pData.putString("ip", pAddress.toString());
+		pData.putInt("intended", IntendedFlag.LOCKSTEP);
+		pData.putByteArray("data", buf);
+		Message msg = this.mCommunicationThread.getHandler().obtainMessage();
+		msg.what = ITCFlags.SEND_MESSAGE;
+		msg.setData(pData);
+		this.mCommunicationThread.getHandler().sendMessage(msg);
+		return 0;
+	}
+
+	@Override
+	public IMessage obtainMessage(int pFlag) {
+		return this.mMessagePool.obtainMessage(pFlag);
+	}
+
+	@Override
+	public <T extends IMessage> void recycleMessage(T pMessage) {
+		this.mMessagePool.recycleMessage(pMessage);
 	}
 
 	// ===========================================================
@@ -190,22 +244,53 @@ public class LockstepNetwork implements ILockstepNetwork {
 		final int pFlag = pBundle.getInt("flag");
 		final byte[] pData = pBundle.getByteArray("data");
 		if (pFlag == MessageFlag.MIGRATE) {
-			this.migrate();
+			this.triggerMigrate();
 		}
 	}
 
-	protected void sendMigrateMessage(){
+	protected void triggerMigrate() {
+		this.ignoreTCPCommunication(true);
+		this.ignoreUDPCommunication(false);
+		this.mCommunicationThread = this.mUDP;
+		this.mLockstepEngine.getLockstepClientListener().migrate();
+	}
+
+	protected void sendMigrateMessage() {
 		MessageMigrate pMessage = (MessageMigrate) this.obtainMessage(MessageFlag.MIGRATE);
-		pMessage.setRequireAck(true); //Although it doesn't really matter
+		pMessage.setRequireAck(true); // Although it doesn't really matter
 		pMessage.setIntended(IntendedFlag.LOCKSTEP);
 		final int pClientCount = this.mClients.size();
 		for (int i = 0; i < pClientCount; i++) {
-			this.mPacketHandler.sendMessage(this.mClients.get(i), pMessage);
+			this.sendMessage(this.mClients.get(i), pMessage);
 		}
 		this.recycleMessage(pMessage);
 	}
+
+	protected void producePoolItems() {
+		Integer pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.MIGRATE_INITIAL_STRING);
+		Integer pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.MIGRATE_GROWTH_STRING);
+		int pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.MIGRATE_INITIAL_INT;
+		int pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.MIGRATE_GROWTH_INT;
+		int pFlag = MessageFlag.MIGRATE;
+		Class<? extends IMessage> pMessageClass = MessageMigrate.class;
+		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
+	}
+
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================
+
+	@Override
+	public boolean allRunning() {
+		if (this.mTCP != null && this.mUDP != null) {
+			if (this.mTCP.isRunning() && this.mUDP.isRunning()) {
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	}
 
 }

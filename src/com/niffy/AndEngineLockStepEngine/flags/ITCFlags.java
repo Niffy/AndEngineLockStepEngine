@@ -64,7 +64,14 @@ public final class ITCFlags {
 	 * This will be passed from the main activity, either for itself or on
 	 * behalf of {@link LockstepNetwork}, Subclasses of
 	 * {@link CommunicationThread} will have to handle sending the message in
-	 * their own way.
+	 * their own way. <br>
+	 * {@link Message#getData()} {@link Bundle} will contain a {@link String}
+	 * with the key <code>ip</code> This will contain the IP address to who to
+	 * send the message to. <br>
+	 * An {@link Integer} with the key <code>intended</code> from
+	 * {@link IntendedFlag}, for who it is intended for. <br>
+	 * {@link Byte} Array with the key <code>data</code>, the encapsulated
+	 * message.
 	 */
 	public final static int SEND_MESSAGE = 20;
 	/**
@@ -95,8 +102,9 @@ public final class ITCFlags {
 	public final static int CLIENT_WINDOW_NOT_EMPTY = 901;
 	/**
 	 * This will be passed from the subclasses of {@link CommunicationThread} to
-	 * the main activity for it self and the {@link LockstepNetwork}.
-	 * The main activity should process this flag after it has handed it to {@link LockstepNetwork}
+	 * the main activity for it self and the {@link LockstepNetwork}. The main
+	 * activity should process this flag after it has handed it to
+	 * {@link LockstepNetwork}
 	 */
 	public final static int NETWORK_ERROR = 1000000;
 	/**

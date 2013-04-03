@@ -4,11 +4,16 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
+import com.niffy.AndEngineLockStepEngine.packet.ISendMessage;
 import com.niffy.AndEngineLockStepEngine.threads.ICommunicationThread;
 import com.niffy.AndEngineLockStepEngine.threads.tcp.TCPCommunicationThread;
 import com.niffy.AndEngineLockStepEngine.threads.udp.UDPCommunicationThread;
 
-public interface ILockstepNetwork extends IHandlerMessage {
+public interface ILockstepNetwork extends IHandlerMessage, ISendMessage {
+	public ICommunicationThread getTCPThread();
+
+	public ICommunicationThread getUDPThread();
+
 	/**
 	 * Attach {@link TCPCommunicationThread} thread. Must be started!
 	 * 
@@ -40,6 +45,16 @@ public interface ILockstepNetwork extends IHandlerMessage {
 	public void ignoreUDPCommunication(boolean pIgnore);
 
 	/**
+	 * Set the current main communication thread to use. <br>
+	 * After attaching both UDP and TCP threads, set this to the TCP thread.
+	 * Calling {@link #migrate()} will then set it to
+	 * {@link UDPCommunicationThread}
+	 * 
+	 * @param pThread
+	 */
+	public void setMainCommunicationThread(final ICommunicationThread pThread);
+
+	/**
 	 * Terminate the TCP thread
 	 */
 	public void terminateTCPThread();
@@ -59,5 +74,7 @@ public interface ILockstepNetwork extends IHandlerMessage {
 	public ArrayList<InetAddress> getClients();
 
 	public void removeClient(final InetAddress pAddress);
+	
+	public boolean allRunning();
 
 }
