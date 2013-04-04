@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.os.Bundle;
-import android.os.Looper;
 import android.os.Message;
 
 import com.niffy.AndEngineLockStepEngine.flags.ErrorCodes;
@@ -48,7 +47,6 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	protected InetAddress mAddress;
 	protected WeakThreadHandler<IHandlerMessage> mCallerThreadHandler;
 	protected WeakThreadHandler<IHandlerMessage> mHandler;
-	protected Looper mLooper;
 	protected IBaseOptions mBaseOptions;
 	protected final AtomicBoolean mRunning = new AtomicBoolean(false);
 	protected final AtomicBoolean mTerminated = new AtomicBoolean(false);
@@ -68,8 +66,6 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 		this.mCallerThreadHandler = pCaller;
 		this.mBaseOptions = pOptions;
 		this.mClients = new ArrayList<InetAddress>();
-		this.mLooper = Looper.myLooper();
-		this.mHandler = new WeakThreadHandler<IHandlerMessage>(this);
 		this.mPacketHandler = new PacketHandler(this, this.mBaseOptions);
 		this.mMessagePool = new MessagePool<IMessage>();
 		this.producePoolItems();

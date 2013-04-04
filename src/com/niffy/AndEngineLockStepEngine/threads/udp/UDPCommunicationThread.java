@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.os.Bundle;
+import android.os.Looper;
 import android.os.Message;
 
 import com.niffy.AndEngineLockStepEngine.flags.ErrorCodes;
@@ -56,6 +57,10 @@ public class UDPCommunicationThread extends CommunicationThread {
 	// ===========================================================
 	@Override
 	public void run() {
+		Looper.prepare();
+		if(this.mHandler == null){
+			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, Looper.getMainLooper());
+		}
 		this.mRunning.set(true);
 		if(!this.mSentRunningMessage){
 			Message msg = this.mCallerThreadHandler.obtainMessage();
@@ -84,6 +89,7 @@ public class UDPCommunicationThread extends CommunicationThread {
 						ErrorCodes.COULD_NOT_RECEIVE);
 			}
 		}
+		Looper.loop();
 	}
 
 	@SuppressWarnings("unused")

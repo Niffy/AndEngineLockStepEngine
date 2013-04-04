@@ -56,6 +56,10 @@ public class TCPCommunicationThread extends CommunicationThread {
 	// ===========================================================
 	@Override
 	public void run() {
+		Looper.prepare();
+		if(this.mHandler == null){
+			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this);
+		}
 		this.mRunning.set(true);
 		if(!this.mSentRunningMessage){
 			Message msg = this.mCallerThreadHandler.obtainMessage();
@@ -79,6 +83,7 @@ public class TCPCommunicationThread extends CommunicationThread {
 				log.error("Error with accepting on TCP socket", e);
 			}
 		}
+		Looper.loop();
 	}
 
 	@Override
