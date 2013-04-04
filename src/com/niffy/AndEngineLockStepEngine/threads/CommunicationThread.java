@@ -337,88 +337,88 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	protected void producePoolItems() {
 		Integer pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.ACK_INITIAL_STRING);
 		Integer pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.ACK_GROWTH_STRING);
-		int pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.ACK_INITIAL_INT;
-		int pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.ACK_INITIAL_INT;
+		int pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.ACK_INITIAL_INT;
+		int pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.ACK_INITIAL_INT;
 		int pFlag = MessageFlag.ACK;
 		Class<? extends IMessage> pMessageClass = MessageAck.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
 
 		pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.ACK_INITIAL_STRING);
 		pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.ACK_GROWTH_STRING);
-		pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.ACK_INITIAL_INT;
-		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.ACK_INITIAL_INT;
+		pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.ACK_INITIAL_INT;
+		pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.ACK_INITIAL_INT;
 		pFlag = MessageFlag.ACK_MULTI;
 		pMessageClass = MessageAckMulti.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
 
 		pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.ERROR_INITIAL_STRING);
 		pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.ERROR_GROWTH_STRING);
-		pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.ERROR_INITIAL_INT;
-		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.ERROR_INITIAL_INT;
+		pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.ERROR_INITIAL_INT;
+		pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.ERROR_INITIAL_INT;
 		pFlag = MessageFlag.ERROR;
 		pMessageClass = MessageError.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
 
 		pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.PING_INITIAL_STRING);
 		pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.PING_GROWTH_STRING);
-		pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.PING_INITIAL_INT;
-		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.PING_INITIAL_INT;
+		pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.PING_INITIAL_INT;
+		pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.PING_INITIAL_INT;
 		pFlag = MessageFlag.PING;
 		pMessageClass = MessagePing.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
 
 		pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.PING_INITIAL_STRING);
 		pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.PING_GROWTH_STRING);
-		pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.PING_INITIAL_INT;
-		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.PING_INITIAL_INT;
+		pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.PING_INITIAL_INT;
+		pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.PING_INITIAL_INT;
 		pFlag = MessageFlag.PING_ACK;
 		pMessageClass = MessagePingAck.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
 
 		pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.PING_INITIAL_STRING);
 		pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.PING_GROWTH_STRING);
-		pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.PING_INITIAL_INT;
-		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.PING_INITIAL_INT;
+		pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.PING_INITIAL_INT;
+		pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.PING_INITIAL_INT;
 		pFlag = MessageFlag.PING_HIGHEST;
 		pMessageClass = MessagePingHighest.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
 
 		pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.MIGRATE_INITIAL_STRING);
 		pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.MIGRATE_GROWTH_STRING);
-		pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.MIGRATE_INITIAL_INT;
-		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.MIGRATE_INITIAL_INT;
+		pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.MIGRATE_INITIAL_INT;
+		pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.MIGRATE_INITIAL_INT;
 		pFlag = MessageFlag.MIGRATE;
 		pMessageClass = MessageMigrate.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
 
 		pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.CLIENT_JOIN_INITIAL_STRING);
 		pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.CLIENT_JOIN_GROWTH_STRING);
-		pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.CLIENT_JOIN_INITIAL_INT;
-		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.CLIENT_JOIN_INITIAL_INT;
+		pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.CLIENT_JOIN_INITIAL_INT;
+		pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.CLIENT_JOIN_INITIAL_INT;
 		pFlag = MessageFlag.CLIENT_JOIN;
 		pMessageClass = MessageClientJoin.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
 
 		pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.CLIENT_DISCONNECTED_INITIAL_STRING);
 		pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.CLIENT_DISCONNECTED_GROWTH_STRING);
-		pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.CLIENT_DISCONNECTED_INITIAL_INT;
-		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.CLIENT_DISCONNECTED_INITIAL_INT;
+		pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.CLIENT_DISCONNECTED_INITIAL_INT;
+		pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.CLIENT_DISCONNECTED_INITIAL_INT;
 		pFlag = MessageFlag.CLIENT_DISCONNECTED;
 		pMessageClass = MessageClientDisconnect.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
 
 		pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.ENCAPSULATED_INITIAL_STRING);
 		pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.ENCAPSULATED_GROWTH_STRING);
-		pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.ENCAPSULATED_INITIAL_INT;
-		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.ENCAPSULATED_INITIAL_INT;
+		pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.ENCAPSULATED_INITIAL_INT;
+		pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.ENCAPSULATED_INITIAL_INT;
 		pFlag = MessageFlag.ENCAPSULATED;
 		pMessageClass = MessageEncapsulated.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);
 
 		pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.CLIENT_OUT_OF_SYNC_INITIAL_STRING);
 		pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.CLIENT_OUT_OF_SYNC_GROWTH_STRING);
-		pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.CLIENT_OUT_OF_SYNC_INITIAL_INT;
-		pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.CLIENT_OUT_OF_SYNC_INITIAL_INT;
+		pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.CLIENT_OUT_OF_SYNC_INITIAL_INT;
+		pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.CLIENT_OUT_OF_SYNC_INITIAL_INT;
 		pFlag = MessageFlag.CLIENT_OUT_OF_SYNC;
 		pMessageClass = MessageOutOfSyncWith.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);

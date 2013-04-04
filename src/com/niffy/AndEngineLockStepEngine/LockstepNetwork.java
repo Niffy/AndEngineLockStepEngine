@@ -47,6 +47,7 @@ public class LockstepNetwork implements ILockstepNetwork {
 		this.mLockstepEngine = pLockstepEngine;
 		this.mBaseOptions = pBaseOptions;
 		this.mClients = new ArrayList<InetAddress>();
+		this.mMessagePool = new MessagePool<IMessage>();
 		this.producePoolItems();
 	}
 
@@ -285,8 +286,8 @@ public class LockstepNetwork implements ILockstepNetwork {
 	protected void producePoolItems() {
 		Integer pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.MIGRATE_INITIAL_STRING);
 		Integer pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.MIGRATE_GROWTH_STRING);
-		int pInitialSize = (pGetIntialSize != null) ? pGetIntialSize : MessagePoolTags.MIGRATE_INITIAL_INT;
-		int pGrowth = (pGetGrowth != null) ? pGetGrowth : MessagePoolTags.MIGRATE_GROWTH_INT;
+		int pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.MIGRATE_INITIAL_INT;
+		int pGrowth = (pGetGrowth != -1) ? pGetGrowth : MessagePoolTags.MIGRATE_GROWTH_INT;
 		int pFlag = MessageFlag.MIGRATE;
 		Class<? extends IMessage> pMessageClass = MessageMigrate.class;
 		this.mMessagePool.registerMessage(pFlag, pMessageClass, pInitialSize, pGrowth);

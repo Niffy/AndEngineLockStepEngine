@@ -168,7 +168,11 @@ public class BaseOptions implements IBaseOptions {
 
 	@Override
 	public int getPoolProperties(String pTag) {
-		return this.mMessagePoolOptions.get(pTag);
+		if(this.mMessagePoolOptions.containsKey(pTag)){
+			return this.mMessagePoolOptions.get(pTag);
+		}else{
+			return -1;
+		}
 	}
 
 	@Override
