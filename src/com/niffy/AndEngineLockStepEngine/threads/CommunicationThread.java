@@ -80,7 +80,7 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 		switch (pMessage.what) {
 		case ITCFlags.SEND_MESSAGE:
 			bundle = pMessage.getData();
-			final String ip = bundle.getString("ip", null);
+			final String ip = bundle.getString("ip");
 			final int intended = bundle.getInt("intended", -1);
 			final byte[] data = bundle.getByteArray("data");
 			this.sendMessageWithPacketHandler(intended, ip, data);
@@ -92,7 +92,7 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 			break;
 		case ITCFlags.CONNECT_TO:
 			bundle = pMessage.getData();
-			final String pAddress = bundle.getString("ip", null);
+			final String pAddress = bundle.getString("ip");
 			this.connect(pAddress);
 		}
 	}
