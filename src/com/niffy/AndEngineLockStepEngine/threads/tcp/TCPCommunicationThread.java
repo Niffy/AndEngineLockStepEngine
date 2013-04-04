@@ -10,6 +10,7 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +38,11 @@ public class TCPCommunicationThread extends CommunicationThread {
 	// ===========================================================
 	protected HashMap<InetAddress, IBaseSocketThread> mSockets;
 	protected ServerSocket mServerTCPSocket;
-
+	/**
+	 * Socket to connect to
+	 */
+	protected Socket mConnectorSocket;
+	protected final AtomicBoolean mIsHost = new AtomicBoolean(true);
 	// ===========================================================
 	// Constructors
 	// ===========================================================
@@ -97,6 +102,22 @@ public class TCPCommunicationThread extends CommunicationThread {
 			Message msg = this.mCallerThreadHandler.obtainMessage();
 			msg.what = ITCFlags.CLIENT_DISCONNECTED;
 			msg.setData(bundle);
+			this.mCallerThreadHandler.sendMessage(msg);
+		}
+	}
+	
+	@Override
+	public void connect(InetAddress pAddress) {
+		try {
+			this.mConnectorSocket = new Socket(pAddress, this.mBaseOptions.getTCPPort());
+			this.mIsHost.set(false);
+			Message msg = this.mCallerThreadHandler.obtainMessage();
+			msg.what = ITCFlags.CONNECTED_TO_HOST;
+			this.mCallerThreadHandler.sendMessage(msg);
+		} catch (IOException e) {
+			log.error("Could not connect to client: {}", pAddress.toString(), e);
+			Message msg = this.mCallerThreadHandler.obtainMessage();
+			msg.what = ITCFlags.CONNECT_TO_ERROR;
 			this.mCallerThreadHandler.sendMessage(msg);
 		}
 	}
@@ -166,6 +187,7 @@ public class TCPCommunicationThread extends CommunicationThread {
 		}
 	}
 
+	
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================

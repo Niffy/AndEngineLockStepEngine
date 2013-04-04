@@ -89,6 +89,12 @@ public class LockstepNetwork implements ILockstepNetwork {
 		case ITCFlags.NETWORK_ERROR:
 			/* TODO handle this*/
 			break;
+		case ITCFlags.CONNECT_TO:
+			this.mLockstepEngine.getLockstepClientListener().connected();
+			break;
+		case ITCFlags.CONNECT_TO_ERROR:
+			this.mLockstepEngine.getLockstepClientListener().connectError();
+			break;
 		}
 	}
 
@@ -204,6 +210,15 @@ public class LockstepNetwork implements ILockstepNetwork {
 		this.mMessagePool.recycleMessage(pMessage);
 	}
 
+	@Override
+	public void connectTo(InetAddress pAddress) {
+		Message msg = this.mTCP.getHandler().obtainMessage();
+		msg.what = ITCFlags.CONNECT_TO;
+		Bundle pData = new Bundle();
+		pData.putString("ip", pAddress.toString());
+		this.mTCP.getHandler().sendMessage(msg);
+	}
+
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================
@@ -239,6 +254,7 @@ public class LockstepNetwork implements ILockstepNetwork {
 		}
 	}
 
+	@SuppressWarnings("unused")
 	protected void handleIncomePacket(final Bundle pBundle) {
 		final String pIp = pBundle.getString("ip");
 		final int pFlag = pBundle.getInt("flag");
@@ -292,5 +308,4 @@ public class LockstepNetwork implements ILockstepNetwork {
 			return false;
 		}
 	}
-
 }

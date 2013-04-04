@@ -21,6 +21,27 @@ public final class ITCFlags {
 	public final static int TCP_THREAD_START = -1111;
 	public final static int UDP_THREAD_START = -1112;
 	/**
+	 * This will be sent from main activity to the {@link LockstepNetwork} to
+	 * connect to a host. Bundle will have a string key <code>ip</code> with the
+	 * ip to connect to.
+	 * 
+	 */
+	public final static int CONNECT_TO = -10;
+	/**
+	 * This will be send from {@link TCPCommunicationThread} to
+	 * {@link LockstepNetwork} to indicate that a connection has been made. <br>
+	 * <b>The main activity should not act upon this flag, other then pass it on
+	 * to {@link LockstepNetwork}</b>
+	 */
+	public final static int CONNECTED_TO_HOST = -11;
+	/**
+	 * This will be send from {@link TCPCommunicationThread} to
+	 * {@link LockstepNetwork} to indicate that a connection has not been made. <br>
+	 * <b>The main activity should not act upon this flag, other then pass it on
+	 * to {@link LockstepNetwork}</b>
+	 */
+	public final static int CONNECT_TO_ERROR = -12;
+	/**
 	 * This will send from {@link CommunicationThread} to the main activity.
 	 * This will need to be passed onto {@link LockstepNetwork}<br>
 	 * {@link Message#getData()} {@link Bundle} will contain a {@link String}

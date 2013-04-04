@@ -12,4 +12,8 @@ public interface ILockstepClientListener {
 	public void clientOutOfSync(final InetAddress pClient);
 	
 	public void migrate();
+	
+	public void connected();
+	
+	public void connectError();
 }

@@ -57,6 +57,7 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	protected ArrayList<InetAddress> mClients;
 	protected MessagePool<IMessage> mMessagePool;
 	protected boolean mSentRunningMessage = false;
+
 	// ===========================================================
 	// Constructors
 	// ===========================================================
@@ -92,6 +93,11 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 			bundle = pMessage.getData();
 			final int pStep = bundle.getInt("step");
 			this.mPacketHandler.lockstepIncrement(pStep);
+			break;
+		case ITCFlags.CONNECT_TO:
+			bundle = pMessage.getData();
+			final String pAddress = bundle.getString("ip", null);
+			this.connect(pAddress);
 		}
 	}
 
@@ -310,6 +316,19 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 			this.mPacketHandler.sendMessage(this.mClients.get(i), pMessage);
 		}
 		this.recycleMessage(pMessage);
+	}
+
+	protected void connect(final InetAddress pAddress) {
+		/* Leave implementation to subclass, well TCP*/
+	}
+	
+	protected void connect(final String pAddress) {
+		try{
+			InetAddress address = InetAddress.getByName(pAddress);
+			this.connect(address);
+		}catch (UnknownHostException e) {
+			log.error("Could not connect to host due to unknown address: {}", pAddress, e);
+		}
 	}
 
 	/**

@@ -76,5 +76,7 @@ public interface ILockstepNetwork extends IHandlerMessage, ISendMessage {
 	public void removeClient(final InetAddress pAddress);
 	
 	public boolean allRunning();
+	
+	public void connectTo(final InetAddress pAddress);
 
 }

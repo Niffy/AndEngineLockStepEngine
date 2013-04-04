@@ -13,7 +13,7 @@ public interface ICommunicationThread extends IHandlerMessage, IGenericWindowCri
 	public WeakThreadHandler<IHandlerMessage> getParentHandler();
 
 	public WeakThreadHandler<IHandlerMessage> getHandler();
-
+	
 	public boolean isRunning();
 
 	public boolean isTerminated();
