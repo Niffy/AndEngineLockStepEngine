@@ -313,18 +313,9 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 		}
 		this.recycleMessage(pMessage);
 	}
-
-	protected void connect(final InetAddress pAddress) {
-		/* Leave implementation to subclass, well TCP*/
-	}
 	
 	protected void connect(final String pAddress) {
-		try{
-			InetAddress address = InetAddress.getByName(pAddress);
-			this.connect(address);
-		}catch (UnknownHostException e) {
-			log.error("Could not connect to host due to unknown address: {}", pAddress, e);
-		}
+		/* Leave implementation to subclass, well TCP*/
 	}
 
 	/**

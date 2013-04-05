@@ -212,11 +212,12 @@ public class LockstepNetwork implements ILockstepNetwork {
 	}
 
 	@Override
-	public void connectTo(InetAddress pAddress) {
+	public void connectTo(String pAddress) {
 		Message msg = this.mTCP.getHandler().obtainMessage();
 		msg.what = ITCFlags.CONNECT_TO;
 		Bundle pData = new Bundle();
-		pData.putString("ip", pAddress.toString());
+		pData.putString("ip", pAddress);
+		msg.setData(pData);
 		this.mTCP.getHandler().sendMessage(msg);
 	}
 

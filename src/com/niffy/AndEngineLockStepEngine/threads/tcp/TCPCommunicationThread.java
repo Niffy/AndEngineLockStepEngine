@@ -59,6 +59,12 @@ public class TCPCommunicationThread extends CommunicationThread {
 		Looper.prepare();
 		if(this.mHandler == null){
 			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this);
+			this.mSockets = new HashMap<InetAddress, IBaseSocketThread>();
+			try {
+				this.mServerTCPSocket = new ServerSocket(this.mBaseOptions.getTCPPort(), 5);
+			} catch (IOException e) {
+				log.error("Server TCP socket IOExcetion", e);
+			}
 		}
 		this.mRunning.set(true);
 		if(!this.mSentRunningMessage){
@@ -112,7 +118,7 @@ public class TCPCommunicationThread extends CommunicationThread {
 	}
 	
 	@Override
-	public void connect(InetAddress pAddress) {
+	protected void connect(final String pAddress) {
 		try {
 			this.mConnectorSocket = new Socket(pAddress, this.mBaseOptions.getTCPPort());
 			this.mIsHost.set(false);
@@ -120,13 +126,13 @@ public class TCPCommunicationThread extends CommunicationThread {
 			msg.what = ITCFlags.CONNECTED_TO_HOST;
 			this.mCallerThreadHandler.sendMessage(msg);
 		} catch (IOException e) {
-			log.error("Could not connect to client: {}", pAddress.toString(), e);
+			log.error("Could not connect to client: {} {}", pAddress.toString(), e);
 			Message msg = this.mCallerThreadHandler.obtainMessage();
 			msg.what = ITCFlags.CONNECT_TO_ERROR;
 			this.mCallerThreadHandler.sendMessage(msg);
 		}
 	}
-
+	
 	@Override
 	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage) {
 		byte[] pData = null;

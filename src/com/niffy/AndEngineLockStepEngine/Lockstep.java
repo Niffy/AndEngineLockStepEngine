@@ -14,7 +14,6 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	@SuppressWarnings("unused")
 	private final Logger log = LoggerFactory.getLogger(Lockstep.class);
 
 	// ===========================================================
@@ -112,6 +111,7 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 			this.mLockstepNetwork.ignoreTCPCommunication(false);
 		} else {
 			/* TODO throw error! */
+			log.error("Could not start inital communications");
 		}
 	}
 
