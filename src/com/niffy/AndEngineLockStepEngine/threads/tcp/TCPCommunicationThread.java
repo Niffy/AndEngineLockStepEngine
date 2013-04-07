@@ -16,8 +16,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.util.Log;
 
 import com.niffy.AndEngineLockStepEngine.flags.ErrorCodes;
 import com.niffy.AndEngineLockStepEngine.flags.ITCFlags;
@@ -43,38 +45,47 @@ public class TCPCommunicationThread extends CommunicationThread {
 	 */
 	protected Socket mConnectorSocket;
 	protected final AtomicBoolean mIsHost = new AtomicBoolean(true);
+	protected Handler mHandlerOrg;
 	// ===========================================================
 	// Constructors
 	// ===========================================================
 
-	public TCPCommunicationThread(final InetAddress pAddress, WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions) {
-		super(pAddress, pCaller, pOptions);
+	public TCPCommunicationThread(final InetAddress pAddress, WeakThreadHandler<IHandlerMessage> pCaller,
+			final IBaseOptions pOptions) {
+		super("TCPThread", pAddress, pCaller, pOptions);
 	}
 
 	// ===========================================================
 	// Methods for/from SuperClass/Interfaces
 	// ===========================================================
+
+
 	@Override
 	public void run() {
-		Looper.prepare();
-		if(this.mHandler == null){
-			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this);
-			this.mSockets = new HashMap<InetAddress, IBaseSocketThread>();
-			try {
-				this.mServerTCPSocket = new ServerSocket(this.mBaseOptions.getTCPPort(), 5);
-			} catch (IOException e) {
-				log.error("Server TCP socket IOExcetion", e);
-			}
-		}
+		//Looper.prepare();
+		//this.onLooperPrepared();
 		this.mRunning.set(true);
-		if(!this.mSentRunningMessage){
+
+		//this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, this.getLooper());
+		this.mSockets = new HashMap<InetAddress, IBaseSocketThread>();
+		if (!this.mSentRunningMessage) {
 			Message msg = this.mCallerThreadHandler.obtainMessage();
 			msg.what = ITCFlags.TCP_THREAD_START;
 			this.mCallerThreadHandler.sendMessage(msg);
 		}
+		
+		try {
+			this.mServerTCPSocket = new ServerSocket(this.mBaseOptions.getTCPPort(), 5);
+			log.debug("Server Socket Created");
+		} catch (IOException e) {
+			log.error("Server TCP socket IOExcetion", e);
+		}
+
+		/*
 		android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DEFAULT);
 		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get() && !this.mIgnoreIncoming.get()) {
 			try {
+
 				log.info("Accepting socket..");
 				final Socket client = this.mServerTCPSocket.accept();
 				InetAddress pClientAddress = client.getInetAddress();
@@ -83,13 +94,52 @@ public class TCPCommunicationThread extends CommunicationThread {
 				clientThread.start();
 				this.mSockets.put(client.getInetAddress(), clientThread);
 				this.mClients.add(pClientAddress);
+				Log.d("TAG", "ACCEPTED");
 				log.info("Accepted: {}", pClientAddress.toString());
 				this.clientJoin(pClientAddress);
 			} catch (IOException e) {
 				log.error("Error with accepting on TCP socket", e);
 			}
 		}
-		Looper.loop();
+		*/
+		super.run();
+		//Looper.loop();
+	}
+
+	@Override
+	protected void onLooperPrepared() {
+		log.debug("onLooperPrepared");
+		super.onLooperPrepared();
+		if(this.mHandler == null){
+			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, this.getLooper());
+		}
+		this.doSomeWork();
+	}
+
+	public void doSomeWork(){
+		log.debug("Do some work");
+		android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DEFAULT);
+		log.debug("Thread interrupted, we want false: {}", Thread.interrupted());
+		log.debug("Running? {}", this.mRunning.get());
+		log.debug("terminated? {}", this.mTerminated.get());
+		log.debug("IgnoreIncoming, we want false: {}", this.mIgnoreIncoming.get());
+		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get() && !this.mIgnoreIncoming.get()) {
+			log.debug("while");
+			try {
+				log.debug("Accepting socket..");
+				final Socket client = this.mServerTCPSocket.accept();
+				InetAddress pClientAddress = client.getInetAddress();
+				BaseSocketThread clientThread = new BaseSocketThread(this.getHandler(), client,
+						pClientAddress.toString(), Looper.getMainLooper());
+				clientThread.start();
+				this.mSockets.put(client.getInetAddress(), clientThread);
+				this.mClients.add(pClientAddress);
+				log.debug("Accepted: {}", pClientAddress.toString());
+				this.clientJoin(pClientAddress);
+			} catch (IOException e) {
+				log.error("Error with accepting on TCP socket", e);
+			}
+		}
 	}
 
 	@Override
@@ -116,11 +166,12 @@ public class TCPCommunicationThread extends CommunicationThread {
 			this.mCallerThreadHandler.sendMessage(msg);
 		}
 	}
-	
+
 	@Override
 	protected void connect(final String pAddress) {
 		try {
 			this.mConnectorSocket = new Socket(pAddress, this.mBaseOptions.getTCPPort());
+			log.debug("Is Connected? {} ", this.mConnectorSocket.isConnected());
 			this.mIsHost.set(false);
 			Message msg = this.mCallerThreadHandler.obtainMessage();
 			msg.what = ITCFlags.CONNECTED_TO_HOST;
@@ -132,7 +183,7 @@ public class TCPCommunicationThread extends CommunicationThread {
 			this.mCallerThreadHandler.sendMessage(msg);
 		}
 	}
-	
+
 	@Override
 	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage) {
 		byte[] pData = null;
@@ -198,7 +249,6 @@ public class TCPCommunicationThread extends CommunicationThread {
 		}
 	}
 
-	
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================
@@ -223,6 +273,10 @@ public class TCPCommunicationThread extends CommunicationThread {
 		} catch (UnknownHostException e) {
 			log.error("Could not disconnect client as could not cast address: {}", pAddress, e);
 		}
+	}
+
+	public void setHandler(WeakThreadHandler<IHandlerMessage> pHandler){
+		this.mHandler = pHandler;
 	}
 	// ===========================================================
 	// Inner and Anonymous Classes

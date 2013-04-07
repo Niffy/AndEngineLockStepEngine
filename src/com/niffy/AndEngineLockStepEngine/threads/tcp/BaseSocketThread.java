@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.os.Bundle;
+import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 
@@ -20,7 +21,7 @@ import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 
 @SuppressWarnings("static-access")
-public class BaseSocketThread extends Thread implements IBaseSocketThread, IHandlerMessage {
+public class BaseSocketThread extends HandlerThread implements IBaseSocketThread, IHandlerMessage {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -53,7 +54,7 @@ public class BaseSocketThread extends Thread implements IBaseSocketThread, IHand
 			this.setName(this.getClass().getName());
 		}
 		this.mLooper = pLooper;
-		this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, this.mLooper.getMainLooper());
+		//this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, this.mLooper.getMainLooper());
 	}
 
 	// ===========================================================
@@ -64,14 +65,26 @@ public class BaseSocketThread extends Thread implements IBaseSocketThread, IHand
 	public WeakThreadHandler<IHandlerMessage> getHandler() {
 		return mHandler;
 	}
-
+	@Override
+	protected void onLooperPrepared() {
+		super.onLooperPrepared();
+		if(this.mHandler == null){
+			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, this.getLooper());
+		}
+		this.doSomeWork();
+	}
 	@Override
 	public void run() {
-		Looper.prepare();
+		//super.run();
+		//Looper.prepare();
+		//this.onLooperPrepared();
+		/*
 		if (this.mHandler == null) {
 			log.debug("Created thread handler in run");
-			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, this.mLooper.myLooper());
+			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, getLooper());
 		}
+		*/
+		/*
 		log.debug("{} socket thread running", this.mName);
 		this.mRunning.set(true);
 		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get()) {
@@ -88,9 +101,29 @@ public class BaseSocketThread extends Thread implements IBaseSocketThread, IHand
 				this.interrupt();
 			}
 		}
-		Looper.loop();
+		*/
+		//Looper.loop();
+		super.run();
 	}
 
+	public void doSomeWork(){
+		log.debug("{} socket thread running", this.mName);
+		this.mRunning.set(true);
+		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get()) {
+			try {
+				InputStream in = this.mSocket.getInputStream();
+				DataInputStream dis = new DataInputStream(in);
+				final byte[] data = this.readBytes(dis);
+				if (data != null) {
+					this.postToMainThread(data);
+				}
+			} catch (IOException e) {
+				log.error("Could not read in bytes from socket", e);
+				this.postErrorToTCPThread();
+				this.interrupt();
+			}
+		}
+	}
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================

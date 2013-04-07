@@ -16,4 +16,6 @@ public interface ILockstepClientListener {
 	public void connected();
 	
 	public void connectError();
+	
+	public void networkError(final String pError);
 }

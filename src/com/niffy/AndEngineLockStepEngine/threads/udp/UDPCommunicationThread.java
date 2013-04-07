@@ -42,7 +42,7 @@ public class UDPCommunicationThread extends CommunicationThread {
 
 	public UDPCommunicationThread(final InetAddress pAddress, WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions)
 			throws SocketException {
-		super(pAddress, pCaller, pOptions);
+		super("UDPThread", pAddress, pCaller, pOptions);
 		this.mBufferSize = this.mBaseOptions.getNetworkBufferSize();
 		try {
 			this.mSocket = new DatagramSocket(this.mBaseOptions.getUDPPort());
@@ -56,17 +56,58 @@ public class UDPCommunicationThread extends CommunicationThread {
 	// Methods for/from SuperClass/Interfaces
 	// ===========================================================
 	@Override
-	public void run() {
-		Looper.prepare();
+	protected void onLooperPrepared() {
+		super.onLooperPrepared();
 		if(this.mHandler == null){
-			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, Looper.getMainLooper());
+			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, this.getLooper());
 		}
+		this.doSomeWork();
+	}
+	@Override
+	public void run() {
+		//super.run();
+		//Looper.prepare();
+		//this.onLooperPrepared();
 		this.mRunning.set(true);
+		/*
+		if(this.mHandler == null){
+			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, this.getLooper());
+		}
+		 */
 		if(!this.mSentRunningMessage){
 			Message msg = this.mCallerThreadHandler.obtainMessage();
 			msg.what = ITCFlags.UDP_THREAD_START;
 			this.mCallerThreadHandler.sendMessage(msg);
 		}
+		/*
+		android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DEFAULT);
+		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get() && !this.mIgnoreIncoming.get()) {
+			String pAddress = null;
+			byte[] pData = null;
+			try {
+				byte[] buf = new byte[this.mBufferSize];
+				DatagramPacket packet = new DatagramPacket(buf, buf.length);
+				this.mSocket.receive(packet);
+				pAddress = packet.getAddress().toString();
+				pData = packet.getData();
+
+				//TODO do we need to have streams here?
+				//final ByteArrayInputStream bInput = new ByteArrayInputStream(packet.getData());
+				//final DataInputStream dInput = new DataInputStream(bInput);
+
+				this.mPacketHandler.reconstructData(packet.getAddress().toString(), packet.getData());
+			} catch (IOException e) {
+				log.error("Error reading in UDP data", e);
+				this.networkMessageFailure(pAddress, pData, ITCFlags.NETWORK_RECIEVE_FAILURE,
+						ErrorCodes.COULD_NOT_RECEIVE);
+			}
+		}
+		 */
+		//Looper.loop();
+		super.run();
+	}
+
+	public void doSomeWork(){
 		android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_DEFAULT);
 		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get() && !this.mIgnoreIncoming.get()) {
 			String pAddress = null;
@@ -81,7 +122,7 @@ public class UDPCommunicationThread extends CommunicationThread {
 				TODO do we need to have streams here?
 				final ByteArrayInputStream bInput = new ByteArrayInputStream(packet.getData());
 				final DataInputStream dInput = new DataInputStream(bInput);
-				*/
+				 */
 				this.mPacketHandler.reconstructData(packet.getAddress().toString(), packet.getData());
 			} catch (IOException e) {
 				log.error("Error reading in UDP data", e);
@@ -89,7 +130,6 @@ public class UDPCommunicationThread extends CommunicationThread {
 						ErrorCodes.COULD_NOT_RECEIVE);
 			}
 		}
-		Looper.loop();
 	}
 
 	@SuppressWarnings("unused")

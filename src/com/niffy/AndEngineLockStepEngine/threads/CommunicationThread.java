@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.os.Bundle;
+import android.os.HandlerThread;
 import android.os.Message;
 
 import com.niffy.AndEngineLockStepEngine.flags.ErrorCodes;
@@ -35,7 +36,7 @@ import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
 import com.niffy.AndEngineLockStepEngine.packet.IPacketHandler;
 import com.niffy.AndEngineLockStepEngine.packet.PacketHandler;
 
-public abstract class CommunicationThread extends Thread implements ICommunicationThread {
+public abstract class CommunicationThread extends HandlerThread implements ICommunicationThread {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -59,9 +60,9 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	// ===========================================================
 	// Constructors
 	// ===========================================================
-
-	public CommunicationThread(final InetAddress pAddress, WeakThreadHandler<IHandlerMessage> pCaller,
+	public CommunicationThread(final String pName, final InetAddress pAddress, WeakThreadHandler<IHandlerMessage> pCaller,
 			final IBaseOptions pOptions) {
+		super(pName);
 		this.mAddress = pAddress;
 		this.mCallerThreadHandler = pCaller;
 		this.mBaseOptions = pOptions;
@@ -94,6 +95,11 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 			bundle = pMessage.getData();
 			final String pAddress = bundle.getString("ip");
 			this.connect(pAddress);
+		case ITCFlags.IGNORE:
+			bundle = pMessage.getData();
+			final boolean pBool = bundle.getBoolean("boolean");
+			this.setIgnoreIncoming(pBool);
+			break;
 		}
 	}
 
@@ -313,7 +319,7 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 		}
 		this.recycleMessage(pMessage);
 	}
-	
+
 	protected void connect(final String pAddress) {
 		/* Leave implementation to subclass, well TCP*/
 	}
@@ -413,5 +419,5 @@ public abstract class CommunicationThread extends Thread implements ICommunicati
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================
-
+	
 }

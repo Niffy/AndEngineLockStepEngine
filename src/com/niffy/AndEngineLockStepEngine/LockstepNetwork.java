@@ -58,10 +58,12 @@ public class LockstepNetwork implements ILockstepNetwork {
 	@SuppressWarnings("unused")
 	@Override
 	public void handlePassedMessage(Message pMessage) {
+		log.debug("Handling message: {}", pMessage.what);
 		Bundle bundle;
 		String ip;
 		byte[] data;
 		switch (pMessage.what) {
+		/* TODO check all are within of lockstep handling */
 		case ITCFlags.CLIENT_CONNECTED:
 			bundle = pMessage.getData();
 			ip = bundle.getString("ip");
@@ -76,26 +78,28 @@ public class LockstepNetwork implements ILockstepNetwork {
 			bundle = pMessage.getData();
 			ip = bundle.getString("ip");
 			final String pMsg = "Error.";
-			this.mLockstepEngine.getLockstepClientListener().clientError(this.castAddress(ip), pMsg);
+			this.clientError(ip, pMsg);
 			break;
 		case ITCFlags.CLIENT_WINDOW_NOT_EMPTY:
 			bundle = pMessage.getData();
 			ip = bundle.getString("ip");
-			this.mLockstepEngine.getLockstepClientListener().clientOutOfSync(this.castAddress(ip));
+			this.clientOutOfSync(ip);
 			break;
 		case ITCFlags.RECIEVE_MESSAGE_LOCKSTEP:
 			bundle = pMessage.getData();
 			this.handleIncomePacket(bundle);
 			break;
 		case ITCFlags.NETWORK_ERROR:
-			/* TODO handle this*/
+			this.networkError("Unknown network error");
 			break;
 		case ITCFlags.CONNECT_TO:
-			this.mLockstepEngine.getLockstepClientListener().connected();
+			//this.mLockstepEngine.getLockstepClientListener().connected();
 			break;
 		case ITCFlags.CONNECT_TO_ERROR:
 			this.mLockstepEngine.getLockstepClientListener().connectError();
 			break;
+		case ITCFlags.CONNECTED_TO_HOST:
+			this.mLockstepEngine.getLockstepClientListener().connected();
 		}
 	}
 
@@ -111,12 +115,20 @@ public class LockstepNetwork implements ILockstepNetwork {
 
 	@Override
 	public void ignoreTCPCommunication(boolean pIgnore) {
+		log.debug("Ignore TCP coms: {}", pIgnore);
 		this.mTCP.setIgnoreIncoming(pIgnore);
+		Message msg = this.mTCP.getHandler().obtainMessage();
+		msg.what = ITCFlags.IGNORE;
+		Bundle pData = new Bundle();
+		pData.putBoolean("boolean", pIgnore);
+		msg.setData(pData);
+		this.mTCP.getParentHandler().sendMessage(msg);
 	}
 
 	@Override
 	public void ignoreUDPCommunication(boolean pIgnore) {
-		this.mUDP.setIgnoreIncoming(pIgnore);
+		log.debug("Ignore UDP coms: {}", pIgnore);
+		this.mUDP.setIgnoreIncoming(pIgnore); 
 	}
 
 	@Override
@@ -185,19 +197,20 @@ public class LockstepNetwork implements ILockstepNetwork {
 			pMessage.write(dOutput);
 			dOutput.flush();
 			buf = bOutput.toByteArray();
+			Bundle pData = new Bundle();
+			pData.putString("ip", pAddress.toString());
+			pData.putInt("intended", IntendedFlag.LOCKSTEP);
+			pData.putByteArray("data", buf);
+			Message msg = this.mCommunicationThread.getHandler().obtainMessage();
+			msg.what = ITCFlags.SEND_MESSAGE;
+			msg.setData(pData);
+			this.mCommunicationThread.getHandler().sendMessage(msg);
 		} catch (IOException e) {
 			log.error("Could not pass packet to communication thread", e);
-			/* TODO handle error */
+			this.networkError("Could not pass packet to communication thread, error: " + e.toString());
 			return -1;
 		}
-		Bundle pData = new Bundle();
-		pData.putString("ip", pAddress.toString());
-		pData.putInt("intended", IntendedFlag.LOCKSTEP);
-		pData.putByteArray("data", buf);
-		Message msg = this.mCommunicationThread.getHandler().obtainMessage();
-		msg.what = ITCFlags.SEND_MESSAGE;
-		msg.setData(pData);
-		this.mCommunicationThread.getHandler().sendMessage(msg);
+	
 		return 0;
 	}
 
@@ -213,12 +226,16 @@ public class LockstepNetwork implements ILockstepNetwork {
 
 	@Override
 	public void connectTo(String pAddress) {
+		//HandlerThread tcpHandlerThread = (HandlerThread) this.mTCP;
+		//Handler handler = new Handler(tcpHandlerThread.getLooper()); 
 		Message msg = this.mTCP.getHandler().obtainMessage();
+		//Message msg = handler.obtainMessage();
 		msg.what = ITCFlags.CONNECT_TO;
 		Bundle pData = new Bundle();
 		pData.putString("ip", pAddress);
 		msg.setData(pData);
 		this.mTCP.getHandler().sendMessage(msg);
+		//handler.sendMessage(msg);
 	}
 
 	// ===========================================================
@@ -242,6 +259,7 @@ public class LockstepNetwork implements ILockstepNetwork {
 		InetAddress cast = this.castAddress(pAddress);
 		if (cast != null) {
 			this.addClient(cast);
+			this.mLockstepEngine.getLockstepClientListener().clientConnected(cast);
 		} else {
 			log.error("Could not add client as could not cast address: {}", pAddress);
 		}
@@ -251,9 +269,32 @@ public class LockstepNetwork implements ILockstepNetwork {
 		InetAddress cast = this.castAddress(pAddress);
 		if (cast != null) {
 			this.removeClient(cast);
+			this.mLockstepEngine.getLockstepClientListener().clientDisconnected(cast);
 		} else {
 			log.error("Could not remove client as could not cast address: {}", pAddress);
 		}
+	}
+
+	public void clientError(final String pAddress, final String pError) {
+		InetAddress cast = this.castAddress(pAddress);
+		if (cast != null) {
+			this.mLockstepEngine.getLockstepClientListener().clientError(cast, pError);
+		} else {
+			log.error("Could not inform of client error as could not cast address: {}", pAddress);
+		}
+	}
+
+	public void clientOutOfSync(final String pAddress) {
+		InetAddress cast = this.castAddress(pAddress);
+		if (cast != null) {
+			this.mLockstepEngine.getLockstepClientListener().clientOutOfSync(cast);
+		} else {
+			log.error("Could not inform of client out of sync as could not cast address: {}", pAddress);
+		}
+	}
+
+	public void networkError(final String pMessage) {
+		this.mLockstepEngine.getLockstepClientListener().networkError(pMessage);
 	}
 
 	@SuppressWarnings("unused")
