@@ -42,7 +42,7 @@ public class UDPCommunicationThread extends CommunicationThread {
 
 	public UDPCommunicationThread(final InetAddress pAddress, WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions)
 			throws SocketException {
-		super(pAddress, pCaller, pOptions);
+		super("UDPThread", pAddress, pCaller, pOptions);
 		this.mBufferSize = this.mBaseOptions.getNetworkBufferSize();
 		try {
 			this.mSocket = new DatagramSocket(this.mBaseOptions.getUDPPort());
@@ -55,13 +55,13 @@ public class UDPCommunicationThread extends CommunicationThread {
 	// ===========================================================
 	// Methods for/from SuperClass/Interfaces
 	// ===========================================================
+
 	@Override
 	public void run() {
 		Looper.prepare();
-		if(this.mHandler == null){
-			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, Looper.getMainLooper());
-		}
 		this.mRunning.set(true);
+		this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, Looper.myLooper());
+
 		if(!this.mSentRunningMessage){
 			Message msg = this.mCallerThreadHandler.obtainMessage();
 			msg.what = ITCFlags.UDP_THREAD_START;
@@ -77,11 +77,11 @@ public class UDPCommunicationThread extends CommunicationThread {
 				this.mSocket.receive(packet);
 				pAddress = packet.getAddress().toString();
 				pData = packet.getData();
-				/*
-				TODO do we need to have streams here?
-				final ByteArrayInputStream bInput = new ByteArrayInputStream(packet.getData());
-				final DataInputStream dInput = new DataInputStream(bInput);
-				*/
+
+				//TODO do we need to have streams here?
+				//final ByteArrayInputStream bInput = new ByteArrayInputStream(packet.getData());
+				//final DataInputStream dInput = new DataInputStream(bInput);
+
 				this.mPacketHandler.reconstructData(packet.getAddress().toString(), packet.getData());
 			} catch (IOException e) {
 				log.error("Error reading in UDP data", e);

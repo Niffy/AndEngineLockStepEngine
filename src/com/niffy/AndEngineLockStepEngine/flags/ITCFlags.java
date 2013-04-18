@@ -18,8 +18,12 @@ public final class ITCFlags {
 	// ===========================================================
 	// Constants
 	// ===========================================================
+	/* TODO clean up java doc as some flag instructions are outdated */
+	public final static int IGNORE = -34343;
 	public final static int TCP_THREAD_START = -1111;
-	public final static int UDP_THREAD_START = -1112;
+	public final static int TCP_LISTENER_THREAD_START = -1112;
+	public final static int UDP_THREAD_START = -1113;
+	public final static int UDP_LISTENER_THREAD_START = -1114;
 	/**
 	 * This will be sent from main activity to the {@link LockstepNetwork} to
 	 * connect to a host. Bundle will have a string key <code>ip</code> with the
@@ -163,4 +167,10 @@ public final class ITCFlags {
 	 * code.
 	 */
 	public final static int NETWORK_RECIEVE_FAILURE = 1000003;
+	/**
+	 * All flags that need to be passed to the lockstep engine
+	 */
+	public final static int[] LOCKSTEP_FLAGS = { CONNECTED_TO_HOST, CONNECT_TO_ERROR, CONNECT_TO_ERROR,
+			CLIENT_CONNECTED, CLIENT_DISCONNECTED, CLIENT_ERROR, RECIEVE_MESSAGE_LOCKSTEP, LOCKSTEP_INCREMENT,
+			CLIENT_WINDOW_NOT_EMPTY, NETWORK_ERROR, NETWORK_SEND_MESSAGE_FAILURE, NETWORK_RECIEVE_FAILURE };
 }
