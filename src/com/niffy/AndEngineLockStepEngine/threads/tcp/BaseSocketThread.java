@@ -20,7 +20,6 @@ import com.niffy.AndEngineLockStepEngine.flags.ITCFlags;
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 
-@SuppressWarnings("static-access")
 public class BaseSocketThread extends HandlerThread implements IBaseSocketThread, IHandlerMessage {
 	// ===========================================================
 	// Constants
@@ -65,26 +64,12 @@ public class BaseSocketThread extends HandlerThread implements IBaseSocketThread
 	public WeakThreadHandler<IHandlerMessage> getHandler() {
 		return mHandler;
 	}
-	@Override
-	protected void onLooperPrepared() {
-		super.onLooperPrepared();
-		if(this.mHandler == null){
-			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, this.getLooper());
-		}
-		this.doSomeWork();
-	}
+
 	@Override
 	public void run() {
-		//super.run();
-		//Looper.prepare();
-		//this.onLooperPrepared();
-		/*
-		if (this.mHandler == null) {
-			log.debug("Created thread handler in run");
-			this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, getLooper());
-		}
-		*/
-		/*
+		Looper.prepare();
+		this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, Looper.myLooper());
+		
 		log.debug("{} socket thread running", this.mName);
 		this.mRunning.set(true);
 		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get()) {
@@ -101,29 +86,10 @@ public class BaseSocketThread extends HandlerThread implements IBaseSocketThread
 				this.interrupt();
 			}
 		}
-		*/
-		//Looper.loop();
-		super.run();
+		
+		Looper.loop();
 	}
 
-	public void doSomeWork(){
-		log.debug("{} socket thread running", this.mName);
-		this.mRunning.set(true);
-		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get()) {
-			try {
-				InputStream in = this.mSocket.getInputStream();
-				DataInputStream dis = new DataInputStream(in);
-				final byte[] data = this.readBytes(dis);
-				if (data != null) {
-					this.postToMainThread(data);
-				}
-			} catch (IOException e) {
-				log.error("Could not read in bytes from socket", e);
-				this.postErrorToTCPThread();
-				this.interrupt();
-			}
-		}
-	}
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================

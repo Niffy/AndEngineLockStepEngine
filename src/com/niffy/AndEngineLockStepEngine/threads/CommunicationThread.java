@@ -3,13 +3,11 @@ package com.niffy.AndEngineLockStepEngine.threads;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.os.Bundle;
-import android.os.HandlerThread;
 import android.os.Message;
 
 import com.niffy.AndEngineLockStepEngine.flags.ErrorCodes;
@@ -36,7 +34,7 @@ import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
 import com.niffy.AndEngineLockStepEngine.packet.IPacketHandler;
 import com.niffy.AndEngineLockStepEngine.packet.PacketHandler;
 
-public abstract class CommunicationThread extends HandlerThread implements ICommunicationThread {
+public abstract class CommunicationThread extends BaseCommunicationThread implements ICommunicationThread {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -45,27 +43,18 @@ public abstract class CommunicationThread extends HandlerThread implements IComm
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	protected InetAddress mAddress;
-	protected WeakThreadHandler<IHandlerMessage> mCallerThreadHandler;
-	protected WeakThreadHandler<IHandlerMessage> mHandler;
-	protected IBaseOptions mBaseOptions;
-	protected final AtomicBoolean mRunning = new AtomicBoolean(false);
-	protected final AtomicBoolean mTerminated = new AtomicBoolean(false);
-	protected final AtomicBoolean mIgnoreIncoming = new AtomicBoolean(true);
 	protected IPacketHandler mPacketHandler;
 	protected ArrayList<InetAddress> mClients;
 	protected MessagePool<IMessage> mMessagePool;
+	protected boolean mListenerThreadRunning = false;
 	protected boolean mSentRunningMessage = false;
 
 	// ===========================================================
 	// Constructors
 	// ===========================================================
-	public CommunicationThread(final String pName, final InetAddress pAddress, WeakThreadHandler<IHandlerMessage> pCaller,
-			final IBaseOptions pOptions) {
-		super(pName);
-		this.mAddress = pAddress;
-		this.mCallerThreadHandler = pCaller;
-		this.mBaseOptions = pOptions;
+	public CommunicationThread(final String pName, final InetAddress pAddress,
+			WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions) {
+		super(pName, pAddress, pCaller, pOptions);
 		this.mClients = new ArrayList<InetAddress>();
 		this.mPacketHandler = new PacketHandler(this, this.mBaseOptions);
 		this.mMessagePool = new MessagePool<IMessage>();
@@ -95,22 +84,13 @@ public abstract class CommunicationThread extends HandlerThread implements IComm
 			bundle = pMessage.getData();
 			final String pAddress = bundle.getString("ip");
 			this.connect(pAddress);
+			break;
 		case ITCFlags.IGNORE:
 			bundle = pMessage.getData();
 			final boolean pBool = bundle.getBoolean("boolean");
 			this.setIgnoreIncoming(pBool);
 			break;
 		}
-	}
-
-	@Override
-	public WeakThreadHandler<IHandlerMessage> getParentHandler() {
-		return this.mCallerThreadHandler;
-	}
-
-	@Override
-	public WeakThreadHandler<IHandlerMessage> getHandler() {
-		return this.mHandler;
 	}
 
 	@Override
@@ -125,35 +105,6 @@ public abstract class CommunicationThread extends HandlerThread implements IComm
 			this.mCallerThreadHandler.sendMessage(pMessage);
 			this.sendErrorMessage(ErrorCodes.CLIENT_WINDOW_NOT_EMPTY, IntendedFlag.NETWORK);
 		}
-	}
-
-	@Override
-	public boolean isRunning() {
-		return this.mRunning.get();
-	}
-
-	@Override
-	public boolean isTerminated() {
-		return this.mTerminated.get();
-	}
-
-	@Override
-	public void terminate() {
-		log.warn("Terminating the thread");
-		if (!this.mTerminated.getAndSet(true)) {
-			this.mRunning.getAndSet(false);
-			this.interrupt();
-		}
-	}
-
-	@Override
-	public boolean isIgnoring() {
-		return this.mIgnoreIncoming.get();
-	}
-
-	@Override
-	public void setIgnoreIncoming(boolean pAllow) {
-		this.mIgnoreIncoming.getAndSet(pAllow);
 	}
 
 	@Override
@@ -419,5 +370,5 @@ public abstract class CommunicationThread extends HandlerThread implements IComm
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================
-	
+
 }

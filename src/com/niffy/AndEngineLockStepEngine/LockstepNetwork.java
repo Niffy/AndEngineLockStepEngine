@@ -100,6 +100,11 @@ public class LockstepNetwork implements ILockstepNetwork {
 			break;
 		case ITCFlags.CONNECTED_TO_HOST:
 			this.mLockstepEngine.getLockstepClientListener().connected();
+			break;
+		case ITCFlags.NETWORK_SEND_MESSAGE_FAILURE:
+			bundle = pMessage.getData();
+			this.mLockstepEngine.getLockstepClientListener().networkError("Could not send message");
+			break;
 		}
 	}
 
@@ -198,7 +203,7 @@ public class LockstepNetwork implements ILockstepNetwork {
 			dOutput.flush();
 			buf = bOutput.toByteArray();
 			Bundle pData = new Bundle();
-			pData.putString("ip", pAddress.toString());
+			pData.putString("ip", pAddress.getHostAddress());
 			pData.putInt("intended", IntendedFlag.LOCKSTEP);
 			pData.putByteArray("data", buf);
 			Message msg = this.mCommunicationThread.getHandler().obtainMessage();
@@ -256,6 +261,7 @@ public class LockstepNetwork implements ILockstepNetwork {
 	}
 
 	protected void clientJoin(final String pAddress) {
+		log.debug("Client joined: {}", pAddress);
 		InetAddress cast = this.castAddress(pAddress);
 		if (cast != null) {
 			this.addClient(cast);
@@ -308,8 +314,11 @@ public class LockstepNetwork implements ILockstepNetwork {
 	}
 
 	protected void triggerMigrate() {
-		this.ignoreTCPCommunication(true);
-		this.ignoreUDPCommunication(false);
+		/*
+		 * TODO Perhaps ignore coms isn't so good?
+		 */
+		//this.ignoreTCPCommunication(false);
+		//this.ignoreUDPCommunication(false);
 		this.mCommunicationThread = this.mUDP;
 		this.mLockstepEngine.getLockstepClientListener().migrate();
 	}
