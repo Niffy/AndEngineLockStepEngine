@@ -53,7 +53,8 @@ public class BaseSocketThread extends HandlerThread implements IBaseSocketThread
 			this.setName(this.getClass().getName());
 		}
 		this.mLooper = pLooper;
-		//this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, this.mLooper.getMainLooper());
+		// this.mHandler = new WeakThreadHandler<IHandlerMessage>(this,
+		// this.mLooper.getMainLooper());
 	}
 
 	// ===========================================================
@@ -69,7 +70,7 @@ public class BaseSocketThread extends HandlerThread implements IBaseSocketThread
 	public void run() {
 		Looper.prepare();
 		this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, Looper.myLooper());
-		
+
 		log.debug("{} socket thread running", this.mName);
 		this.mRunning.set(true);
 		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get()) {
@@ -86,7 +87,7 @@ public class BaseSocketThread extends HandlerThread implements IBaseSocketThread
 				this.interrupt();
 			}
 		}
-		
+
 		Looper.loop();
 	}
 
@@ -133,8 +134,7 @@ public class BaseSocketThread extends HandlerThread implements IBaseSocketThread
 
 	@Override
 	public void handlePassedMessage(Message pMessage) {
-		// log.debug("{} Handling client socket message from parent",
-		// this.mName);
+		log.debug("{} Handling client socket message from parent", this.mName);
 		Bundle bundle;
 		switch (pMessage.what) {
 		case ITCFlags.TCP_CLIENT_OUTGOING:
