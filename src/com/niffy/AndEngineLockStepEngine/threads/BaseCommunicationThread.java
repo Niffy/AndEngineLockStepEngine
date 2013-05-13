@@ -1,6 +1,7 @@
 package com.niffy.AndEngineLockStepEngine.threads;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
@@ -23,7 +24,7 @@ public abstract class BaseCommunicationThread extends Thread implements IBaseCom
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	protected InetAddress mAddress;
+	protected InetSocketAddress mAddress;
 	protected IBaseOptions mBaseOptions;
 	protected final AtomicBoolean mRunning = new AtomicBoolean(false);
 	protected final AtomicBoolean mTerminated = new AtomicBoolean(false);
@@ -35,17 +36,18 @@ public abstract class BaseCommunicationThread extends Thread implements IBaseCom
 	// Constructors
 	// ===========================================================
 
-	public BaseCommunicationThread(final String pName, final InetAddress pAddress,
+	public BaseCommunicationThread(final String pName, final InetSocketAddress pAddress,
 			WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions) {
 		super(pName);
 		this.mAddress = pAddress;
 		this.mCallerThreadHandler = pCaller;
 		this.mBaseOptions = pOptions;
 	}
+
 	// ===========================================================
 	// Methods for/from SuperClass/Interfaces
 	// ===========================================================
-	
+
 	@Override
 	public void handlePassedMessage(Message pMessage) {
 	}
@@ -84,7 +86,6 @@ public abstract class BaseCommunicationThread extends Thread implements IBaseCom
 	public boolean isIgnoring() {
 		return this.mIgnoreIncoming.get();
 	}
-
 
 	@Override
 	public void setIgnoreIncoming(boolean pAllow) {

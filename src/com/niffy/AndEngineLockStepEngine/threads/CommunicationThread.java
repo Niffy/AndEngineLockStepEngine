@@ -1,6 +1,7 @@
 package com.niffy.AndEngineLockStepEngine.threads;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 
@@ -52,7 +53,7 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 	// ===========================================================
 	// Constructors
 	// ===========================================================
-	public CommunicationThread(final String pName, final InetAddress pAddress,
+	public CommunicationThread(final String pName, final InetSocketAddress pAddress,
 			WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions) {
 		super(pName, pAddress, pCaller, pOptions);
 		this.mClients = new ArrayList<InetAddress>();

@@ -14,11 +14,13 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
+import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
+import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
 import com.niffy.AndEngineLockStepEngine.threads.BaseSelectorThread;
 
 public class ServerSelector extends BaseSelectorThread {
@@ -35,8 +37,12 @@ public class ServerSelector extends BaseSelectorThread {
 	// ===========================================================
 	// Constructors
 	// ===========================================================
-	public ServerSelector(final int pPort) throws IOException {
-		super(pPort);
+	/**
+	 * @see {@link BaseSelectorThread#BaseSelectorThread(String, InetSocketAddress, WeakThreadHandler, IBaseOptions, int)}
+	 */
+	public ServerSelector(final String pName, final InetSocketAddress pAddress,
+			WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions) throws IOException {
+		super(pName, pAddress, pCaller, pOptions);
 	}
 
 	// ===========================================================
@@ -118,7 +124,7 @@ public class ServerSelector extends BaseSelectorThread {
 		this.mTCPChannel.configureBlocking(false);
 
 		// Bind the server socket to the specified address and port
-		this.mTCPChannel.socket().bind(this.mHostAddress);
+		this.mTCPChannel.socket().bind(this.mAddress);
 
 		// Register the server socket channel, indicating an interest in
 		// accepting new connections
@@ -135,8 +141,7 @@ public class ServerSelector extends BaseSelectorThread {
 		socketChannel.configureBlocking(false);
 		socketChannel.register(this.mSelector, SelectionKey.OP_READ);
 		Connection con = new Connection((InetSocketAddress) socket.getRemoteSocketAddress(), socketChannel);
-		final String address = con.getAddress().getAddress().getHostAddress().toString();
-		this.mChannelMap.put(address, con);
+		this.mChannelMap.put(con.getAddress(), con);
 		pKey.attach(con);
 		/* 
 		 * TODO inform of new connection has been made
@@ -250,7 +255,7 @@ public class ServerSelector extends BaseSelectorThread {
 	// ===========================================================
 	// Methods
 	// ===========================================================
-	
+
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================

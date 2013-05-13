@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
+import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
 import com.niffy.AndEngineLockStepEngine.threads.nio.ChangeRequest;
 import com.niffy.AndEngineLockStepEngine.threads.nio.Connection;
 
@@ -33,7 +34,7 @@ import com.niffy.AndEngineLockStepEngine.threads.nio.Connection;
  * @see<a href=""http://rox-xmlrpc.sourceforge.net/niotut/> ROX Java NIO
  *        Tutorial</a>
  */
-public abstract class BaseSelectorThread extends Thread {
+public abstract class BaseSelectorThread extends BaseCommunicationThread {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -42,15 +43,12 @@ public abstract class BaseSelectorThread extends Thread {
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	protected InetSocketAddress mHostAddress;
-	protected int mPort;
 	protected Selector mSelector;
 	protected int mBufferCapacity = 8192;
 	protected ByteBuffer readBuffer = ByteBuffer.allocate(8192);
 	protected List<ChangeRequest> mPendingChanges = new LinkedList<ChangeRequest>();
 	protected Map<String, ArrayList<ByteBuffer>> mPendingData = new HashMap<String, ArrayList<ByteBuffer>>();
-	protected HashMap<String, Connection> mChannelMap = new HashMap<String, Connection>();
-	protected WeakThreadHandler<IHandlerMessage> mThreadHandler;
+	protected HashMap<InetSocketAddress, Connection> mChannelMap = new HashMap<InetSocketAddress, Connection>();
 
 	// ===========================================================
 	// Constructors
@@ -58,27 +56,42 @@ public abstract class BaseSelectorThread extends Thread {
 	/**
 	 * Uses the default buffer capacity of {@link #DefaultBufferCapacity}
 	 * 
-	 * @param pPort
-	 *            What port should this listen for requests on?
+	 * @param pName
+	 *            name of thread
+	 * @param pAddress
+	 *            {@link InetSocketAddress} of client.
+	 * @param pCaller
+	 *            {@link WeakThreadHandler} to pass messages to.
+	 * @param pOptions
+	 *            {@link IBaseOptions} to use
 	 * @throws IOException
 	 *             when calling {@link #initSelector()}
 	 */
-	public BaseSelectorThread(final int pPort) throws IOException {
-		this(pPort, DefaultBufferCapacity);
+	public BaseSelectorThread(final String pName, final InetSocketAddress pAddress,
+			WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions) throws IOException {
+		this(pName, pAddress, pCaller, pOptions, DefaultBufferCapacity);
 	}
 
 	/**
 	 * 
-	 * @param pPort
-	 *            What port should this listen for requests on?
+	 * @param pName
+	 *            name of thread
+	 * @param pAddress
+	 *            {@link InetSocketAddress} of client.
+	 * @param pCaller
+	 *            {@link WeakThreadHandler} to pass messages to.
+	 * @param pOptions
+	 *            {@link IBaseOptions} to use
 	 * @param pBufferCapacity
 	 *            What size should the buffer capacity to read and write.
 	 * @throws IOException
 	 *             when calling {@link #initSelector()}
 	 */
-	public BaseSelectorThread(final int pPort, final int pBufferCapacity) throws IOException {
-		this.mPort = pPort;
-		this.mHostAddress = new InetSocketAddress(this.mPort);
+	public BaseSelectorThread(final String pName, final InetSocketAddress pAddress,
+			WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions, final int pBufferCapacity)
+			throws IOException {
+		super(pName, pAddress, pCaller, pOptions);
+		this.mAddress = pAddress;
 		this.mBufferCapacity = pBufferCapacity;
 		ByteBuffer.allocate(this.mBufferCapacity);
 		this.mSelector = this.initSelector();
@@ -156,7 +169,7 @@ public abstract class BaseSelectorThread extends Thread {
 		pChannel.close();
 		pKey.cancel();
 	}
-	
+
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================
