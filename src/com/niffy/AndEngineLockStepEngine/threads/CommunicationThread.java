@@ -70,6 +70,10 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 		Bundle bundle;
 		switch (pMessage.what) {
 		case ITCFlags.SEND_MESSAGE:
+			/*
+			 * TODO set how to send, TCP or UDP
+			 * as well as using default way.
+			 */
 			bundle = pMessage.getData();
 			final String ip = bundle.getString("ip");
 			final int intended = bundle.getInt("intended", -1);
@@ -82,14 +86,12 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 			this.mPacketHandler.lockstepIncrement(pStep);
 			break;
 		case ITCFlags.CONNECT_TO:
+			/*
+			 * TODO on what port!
+			 */
 			bundle = pMessage.getData();
 			final String pAddress = bundle.getString("ip");
 			this.connect(pAddress);
-			break;
-		case ITCFlags.IGNORE:
-			bundle = pMessage.getData();
-			final boolean pBool = bundle.getBoolean("boolean");
-			this.setIgnoreIncoming(pBool);
 			break;
 		}
 	}

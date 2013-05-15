@@ -28,7 +28,6 @@ public abstract class BaseCommunicationThread extends Thread implements IBaseCom
 	protected IBaseOptions mBaseOptions;
 	protected final AtomicBoolean mRunning = new AtomicBoolean(false);
 	protected final AtomicBoolean mTerminated = new AtomicBoolean(false);
-	protected final AtomicBoolean mIgnoreIncoming = new AtomicBoolean(true);
 	protected WeakThreadHandler<IHandlerMessage> mCallerThreadHandler;
 	protected WeakThreadHandler<IHandlerMessage> mHandler;
 
@@ -80,17 +79,6 @@ public abstract class BaseCommunicationThread extends Thread implements IBaseCom
 			Looper.myLooper().quit();
 			this.interrupt();
 		}
-	}
-
-	@Override
-	public boolean isIgnoring() {
-		return this.mIgnoreIncoming.get();
-	}
-
-	@Override
-	public void setIgnoreIncoming(boolean pAllow) {
-		log.debug("SetIgnore: {}", pAllow);
-		this.mIgnoreIncoming.getAndSet(pAllow);
 	}
 
 	@Override

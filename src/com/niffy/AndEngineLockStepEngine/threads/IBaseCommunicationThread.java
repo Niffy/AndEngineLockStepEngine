@@ -17,19 +17,5 @@ public interface IBaseCommunicationThread extends IHandlerMessage {
 
 	public void terminate();
 
-	/**
-	 * Is the thread ignoring all incoming data?
-	 */
-	public boolean isIgnoring();
-
-	/**
-	 * Allow processing of incoming data. Set to <code>false</code> to allow
-	 * processing, <code>true</code> to ignore incoming data.
-	 * 
-	 * @param pAllow
-	 *            {@link Boolean} Allow processing if coming data.
-	 */
-	public void setIgnoreIncoming(final boolean pAllow);
-
 	public void handleErrorMessage(final InetAddress pAddress, final MessageError pMessage);
 }

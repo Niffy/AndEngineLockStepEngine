@@ -22,6 +22,7 @@ import com.niffy.AndEngineLockStepEngine.messages.pool.MessagePool;
 import com.niffy.AndEngineLockStepEngine.messages.pool.MessagePoolTags;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
 import com.niffy.AndEngineLockStepEngine.threads.ICommunicationThread;
+import com.niffy.AndEngineLockStepEngine.threads.nio.ICommunicationHandler;
 
 public class LockstepNetwork implements ILockstepNetwork {
 	// ===========================================================
@@ -32,9 +33,7 @@ public class LockstepNetwork implements ILockstepNetwork {
 	// Fields
 	// ===========================================================
 	protected final ILockstepEngine mLockstepEngine;
-	protected ICommunicationThread mCommunicationThread;
-	protected ICommunicationThread mUDP;
-	protected ICommunicationThread mTCP;
+	protected ICommunicationHandler mCommunicationHandler;
 	protected ArrayList<InetAddress> mClients;
 	protected IBaseOptions mBaseOptions;
 	protected MessagePool<IMessage> mMessagePool;
