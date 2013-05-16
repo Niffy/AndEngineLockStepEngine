@@ -2,15 +2,12 @@ package com.niffy.AndEngineLockStepEngine.threads.nio;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.ClosedChannelException;
-import java.nio.channels.NotYetConnectedException;
+import java.nio.channels.NoConnectionPendingException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -18,22 +15,19 @@ import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.os.Looper;
-
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
 
-public class ServerSelector extends BaseSelectorThread {
+public class ClientSelector extends BaseSelectorThread {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private final Logger log = LoggerFactory.getLogger(ServerSelector.class);
+	private final Logger log = LoggerFactory.getLogger(ClientSelector.class);
 
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	protected ServerSocketChannel mTCPChannel;
 
 	// ===========================================================
 	// Constructors
@@ -41,7 +35,7 @@ public class ServerSelector extends BaseSelectorThread {
 	/**
 	 * @see {@link BaseSelectorThread#BaseSelectorThread(String, InetSocketAddress, WeakThreadHandler, IBaseOptions, int)}
 	 */
-	public ServerSelector(final String pName, final InetSocketAddress pAddress,
+	public ClientSelector(final String pName, final InetSocketAddress pAddress,
 			WeakThreadHandler<IHandlerMessage> pCaller, final IBaseOptions pOptions) throws IOException {
 		super(pName, pAddress, pCaller, pOptions);
 	}
@@ -51,8 +45,7 @@ public class ServerSelector extends BaseSelectorThread {
 	// ===========================================================
 	@Override
 	public void run() {
-		log.debug("Running TCP Selector Thread");
-		this.mRunning.set(true);
+		log.debug("Running TCP Client Selector Thread");
 		while (true) {
 			try {
 				// Process any pending changes
@@ -80,8 +73,8 @@ public class ServerSelector extends BaseSelectorThread {
 
 					// Check what event is available and deal with it
 					try {
-						if (key.isAcceptable()) {
-							this.accept(key);
+						if (key.isConnectable()) {
+							this.finishConnection(key);
 						} else if (key.isReadable()) {
 							this.read(key);
 						} else if (key.isWritable()) {
@@ -98,94 +91,42 @@ public class ServerSelector extends BaseSelectorThread {
 	}
 
 	@Override
-	protected Selector initSelector() throws IOException {
-		Selector found = super.initSelector();
-
-		// Create a new non-blocking server socket channel
-		this.mTCPChannel = ServerSocketChannel.open();
-		this.mTCPChannel.configureBlocking(false);
-
-		// Bind the server socket to the specified address and port
-		this.mTCPChannel.socket().bind(this.mAddress);
-
-		// Register the server socket channel, indicating an interest in
-		// accepting new connections
-		this.mTCPChannel.register(found, SelectionKey.OP_ACCEPT);
-
-		return found;
-	}
-
-	@Override
-	protected void accept(SelectionKey pKey) throws IOException {
-		ServerSocketChannel serverSocketChannel = (ServerSocketChannel) pKey.channel();
-		SocketChannel socketChannel = serverSocketChannel.accept();
-		Socket socket = socketChannel.socket();
-		socketChannel.configureBlocking(false);
-		socketChannel.register(this.mSelector, SelectionKey.OP_READ);
-		Connection con = new Connection((InetSocketAddress) socket.getRemoteSocketAddress(), socketChannel);
-		this.mChannelMap.put(con.getAddress(), con);
-		pKey.attach(con);
-		/* 
-		 * TODO inform of new connection has been made
-		 */
-	}
-
-	@Override
-	protected void read(SelectionKey pKey) throws IOException {
+	protected void finishConnection(SelectionKey pKey) throws IOException {
 		SocketChannel socketChannel;
 		InetSocketAddress address;
-		String connectionIP;
 		Connection con = (Connection) pKey.attachment();
 		if (con != null) {
 			socketChannel = con.getSocketChannel();
 			address = con.getAddress();
-			connectionIP = address.getAddress().getHostAddress();
 		} else {
 			socketChannel = (SocketChannel) pKey.channel();
 			address = (InetSocketAddress) socketChannel.socket().getRemoteSocketAddress();
-			connectionIP = address.getAddress().getHostAddress();
-			log.warn("Could not get Connection attachment for IP: {}", connectionIP);
+			con = new Connection(address, socketChannel);
+			pKey.attach(con);
 		}
-		this.readBuffer.clear();
 
-		// Attempt to read off the channel
-		int numRead = -1;
 		try {
-			numRead = socketChannel.read(this.readBuffer);
-		} catch (AsynchronousCloseException e) {
-			log.error("For IP: {}", connectionIP);
-			log.error("AsynchronousCloseException", e);
+			socketChannel.finishConnect();
+		} catch (NoConnectionPendingException e) {
+			log.error("NoConnectionPendingException", e);
 			/* TODO Handle this */
 			this.handleConnectionFailure(pKey, socketChannel);
-		} catch (NotYetConnectedException e) {
-			log.error("For IP: {}", connectionIP);
-			log.error("NotYetConnectedException", e);
-			this.handleConnectionFailure(pKey, socketChannel);
-			/* TODO Handle this */
 		} catch (ClosedChannelException e) {
-			log.error("For IP: {}", connectionIP);
 			log.error("ClosedChannelException", e);
-			this.handleConnectionFailure(pKey, socketChannel);
 			/* TODO Handle this */
+			this.handleConnectionFailure(pKey, socketChannel);
 		} catch (IOException e) {
-			log.error("For IP: {}", connectionIP);
 			log.error("IOException", e);
-			// The remote forcibly closed the connection, cancel
-			// the selection key and close the channel.
+			/* TODO Handle this */
 			this.handleConnectionFailure(pKey, socketChannel);
 			return;
 		}
 
-		if (numRead == -1) {
-			// Remote entity shut the socket down cleanly. Do the
-			// same from our end and cancel the channel.
-			/* TODO check that closing socketChannel is ok, 
-			 * we were doing pKey.channel().close()
-			 */
-			this.handleConnectionShutdown(pKey, socketChannel);
-			return;
-		}
-		/* TODO pass message out of thread */
+		this.mChannelMap.put(con.mAddress, con);
+		pKey.interestOps(SelectionKey.OP_WRITE);
+		/*
+		 * TODO inform communication handler the connection has finished.
+		 */
 	}
 
 	/**
@@ -235,7 +176,7 @@ public class ServerSelector extends BaseSelectorThread {
 	@Override
 	protected void handleChangeRequest(ChangeRequest pChangeRequest) {
 		switch (pChangeRequest.mType) {
-		case ChangeRequestTCP.CHANGEOPS:
+		case ChangeRequest.CHANGEOPS:
 			SelectionKey key = pChangeRequest.mChannel.keyFor(this.mSelector);
 			if (key == null) {
 				log.error("Could not change channel operations for. Null key {} ", pChangeRequest.mChannel.toString());
@@ -254,18 +195,24 @@ public class ServerSelector extends BaseSelectorThread {
 					 */
 				}
 			}
+		case ChangeRequest.REGISTER:
+			try {
+				pChangeRequest.mChannel.register(this.mSelector, pChangeRequest.mOps);
+			} catch (ClosedChannelException e) {
+				log.error("ClosedChannelException", e);
+				/* TODO handle this, clean up pending data and pending changes?
+				 * And remove from any collections
+				 */
+			} catch (CancelledKeyException e) {
+				log.error("CancelledKeyException", e);
+				/* TODO handle this, clean up pending data and pending changes?
+				 * And remove from any collections
+				 */
+			}
+			break;
 		}
 	}
 
-	@Override
-	public void terminate() {
-		log.warn("Terminating the thread: {}", this.getName());
-		if (!this.mTerminated.getAndSet(true)) {
-			this.mRunning.getAndSet(false);
-			Looper.myLooper().quit();
-			this.interrupt();
-		}
-	}
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================
@@ -273,7 +220,24 @@ public class ServerSelector extends BaseSelectorThread {
 	// ===========================================================
 	// Methods
 	// ===========================================================
+	protected SocketChannel initiateConnection(final InetSocketAddress pAddress) throws IOException {
+		SocketChannel socketChannel = SocketChannel.open();
+		socketChannel.configureBlocking(false);
 
+		// Kick off connection establishment
+		socketChannel.connect(pAddress);
+
+		// Queue a channel registration since the caller is not the
+		// selecting thread. As part of the registration we'll register
+		// an interest in connection events. These are raised when a channel
+		// is ready to complete connection establishment.
+		synchronized (this.mPendingChanges) {
+			this.mPendingChanges.add(new ChangeRequest(socketChannel, ChangeRequest.REGISTER, SelectionKey.OP_CONNECT,
+					pAddress));
+		}
+
+		return socketChannel;
+	}
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================

@@ -21,8 +21,7 @@ import com.niffy.AndEngineLockStepEngine.messages.MessageMigrate;
 import com.niffy.AndEngineLockStepEngine.messages.pool.MessagePool;
 import com.niffy.AndEngineLockStepEngine.messages.pool.MessagePoolTags;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
-import com.niffy.AndEngineLockStepEngine.threads.ICommunicationThread;
-import com.niffy.AndEngineLockStepEngine.threads.nio.ICommunicationHandler;
+import com.niffy.AndEngineLockStepEngine.threads.ICommunicationHandler;
 
 public class LockstepNetwork implements ILockstepNetwork {
 	// ===========================================================
@@ -108,68 +107,6 @@ public class LockstepNetwork implements ILockstepNetwork {
 	}
 
 	@Override
-	public ICommunicationThread getTCPThread() {
-		return this.mTCP;
-	}
-
-	@Override
-	public ICommunicationThread getUDPThread() {
-		return this.mUDP;
-	}
-
-	@Override
-	public void ignoreTCPCommunication(boolean pIgnore) {
-		log.debug("Ignore TCP coms: {}", pIgnore);
-		this.mTCP.setIgnoreIncoming(pIgnore);
-		Message msg = this.mTCP.getHandler().obtainMessage();
-		msg.what = ITCFlags.IGNORE;
-		Bundle pData = new Bundle();
-		pData.putBoolean("boolean", pIgnore);
-		msg.setData(pData);
-		this.mTCP.getParentHandler().sendMessage(msg);
-	}
-
-	@Override
-	public void ignoreUDPCommunication(boolean pIgnore) {
-		log.debug("Ignore UDP coms: {}", pIgnore);
-		this.mUDP.setIgnoreIncoming(pIgnore); 
-	}
-
-	@Override
-	public void setMainCommunicationThread(ICommunicationThread pThread) {
-		this.mCommunicationThread = pThread;
-	}
-
-	@Override
-	public void terminateTCPThread() {
-		this.mTCP.terminate();
-	}
-
-	@Override
-	public void terminateUDPThread() {
-		this.mUDP.terminate();
-	}
-
-	@Override
-	public void attachTCPThread(ICommunicationThread pThread) {
-		this.mTCP = pThread;
-		if (!pThread.isIgnoring()) {
-			log.warn("TCP Thread is not ignoring incoming data.");
-		}
-	}
-
-	@Override
-	public void attachUDPThread(ICommunicationThread pThread) {
-		this.mUDP = pThread;
-	}
-
-	@Override
-	public void migrate() {
-		this.sendMigrateMessage();
-		this.triggerMigrate();
-	}
-
-	@Override
 	public void addClient(InetAddress pAddress) {
 		if (!this.mClients.contains(pAddress)) {
 			this.mClients.add(pAddress);
@@ -205,16 +142,15 @@ public class LockstepNetwork implements ILockstepNetwork {
 			pData.putString("ip", pAddress.getHostAddress());
 			pData.putInt("intended", IntendedFlag.LOCKSTEP);
 			pData.putByteArray("data", buf);
-			Message msg = this.mCommunicationThread.getHandler().obtainMessage();
+			Message msg = this.mCommunicationHandler.getHandler().obtainMessage();
 			msg.what = ITCFlags.SEND_MESSAGE;
 			msg.setData(pData);
-			this.mCommunicationThread.getHandler().sendMessage(msg);
+			this.mCommunicationHandler.getHandler().sendMessage(msg);
 		} catch (IOException e) {
 			log.error("Could not pass packet to communication thread", e);
 			this.networkError("Could not pass packet to communication thread, error: " + e.toString());
 			return -1;
 		}
-	
 		return 0;
 	}
 
@@ -230,16 +166,14 @@ public class LockstepNetwork implements ILockstepNetwork {
 
 	@Override
 	public void connectTo(String pAddress) {
-		//HandlerThread tcpHandlerThread = (HandlerThread) this.mTCP;
-		//Handler handler = new Handler(tcpHandlerThread.getLooper()); 
-		Message msg = this.mTCP.getHandler().obtainMessage();
-		//Message msg = handler.obtainMessage();
-		msg.what = ITCFlags.CONNECT_TO;
-		Bundle pData = new Bundle();
-		pData.putString("ip", pAddress);
-		msg.setData(pData);
-		this.mTCP.getHandler().sendMessage(msg);
-		//handler.sendMessage(msg);
+		/*
+		 * TODO send message to ICommunicationHandler
+		 */
+	}
+	
+	@Override
+	public void setMainCommunicationThread(ICommunicationHandler pThread) {
+		this.mCommunicationHandler = pThread;
 	}
 
 	// ===========================================================
@@ -308,32 +242,14 @@ public class LockstepNetwork implements ILockstepNetwork {
 		final int pFlag = pBundle.getInt("flag");
 		final byte[] pData = pBundle.getByteArray("data");
 		if (pFlag == MessageFlag.MIGRATE) {
-			this.triggerMigrate();
+			//this.triggerMigrate();
 		}
-	}
-
-	protected void triggerMigrate() {
-		/*
-		 * TODO Perhaps ignore coms isn't so good?
-		 */
-		//this.ignoreTCPCommunication(false);
-		//this.ignoreUDPCommunication(false);
-		this.mCommunicationThread = this.mUDP;
-		this.mLockstepEngine.getLockstepClientListener().migrate();
-	}
-
-	protected void sendMigrateMessage() {
-		MessageMigrate pMessage = (MessageMigrate) this.obtainMessage(MessageFlag.MIGRATE);
-		pMessage.setRequireAck(true); // Although it doesn't really matter
-		pMessage.setIntended(IntendedFlag.LOCKSTEP);
-		final int pClientCount = this.mClients.size();
-		for (int i = 0; i < pClientCount; i++) {
-			this.sendMessage(this.mClients.get(i), pMessage);
-		}
-		this.recycleMessage(pMessage);
 	}
 
 	protected void producePoolItems() {
+		/*
+		 * TODO don't need migrate do we?
+		 */
 		Integer pGetIntialSize = this.mBaseOptions.getPoolProperties(MessagePoolTags.MIGRATE_INITIAL_STRING);
 		Integer pGetGrowth = this.mBaseOptions.getPoolProperties(MessagePoolTags.MIGRATE_GROWTH_STRING);
 		int pInitialSize = (pGetIntialSize != -1) ? pGetIntialSize : MessagePoolTags.MIGRATE_INITIAL_INT;
@@ -349,14 +265,11 @@ public class LockstepNetwork implements ILockstepNetwork {
 
 	@Override
 	public boolean allRunning() {
-		if (this.mTCP != null && this.mUDP != null) {
-			if (this.mTCP.isRunning() && this.mUDP.isRunning()) {
-				return true;
-			} else {
-				return false;
-			}
-		} else {
-			return false;
-		}
+		/*
+		 * TODO 
+		 */
+		return true;
 	}
+
+
 }

@@ -107,17 +107,12 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 
 	@Override
 	public void startInitialCommunications() {
-		if (this.mLockstepNetwork.allRunning()) {
-			this.mLockstepNetwork.ignoreTCPCommunication(false);
-		} else {
-			/* TODO throw error! */
-			log.error("Could not start inital communications");
-		}
+		/* IGNORE THIS */
 	}
 
 	@Override
 	public void migrate() {
-		this.mLockstepNetwork.migrate();
+		/* IGNORE THIS */
 	}
 
 	@Override

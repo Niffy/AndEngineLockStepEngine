@@ -78,6 +78,7 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 			final String ip = bundle.getString("ip");
 			final int intended = bundle.getInt("intended", -1);
 			final byte[] data = bundle.getByteArray("data");
+			final boolean TCP = bundle.getBoolean("method", false);
 			this.sendMessageWithPacketHandler(intended, ip, data);
 			break;
 		case ITCFlags.LOCKSTEP_INCREMENT:

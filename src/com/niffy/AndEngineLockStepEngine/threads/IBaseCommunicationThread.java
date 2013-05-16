@@ -6,16 +6,10 @@ import com.niffy.AndEngineLockStepEngine.messages.MessageError;
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 
-public interface IBaseCommunicationThread extends IHandlerMessage {
+public interface IBaseCommunicationThread extends IHandlerMessage, IBaseThread {
 	public WeakThreadHandler<IHandlerMessage> getParentHandler();
 
 	public WeakThreadHandler<IHandlerMessage> getHandler();
-
-	public boolean isRunning();
-
-	public boolean isTerminated();
-
-	public void terminate();
 
 	public void handleErrorMessage(final InetAddress pAddress, final MessageError pMessage);
 }
