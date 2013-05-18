@@ -17,6 +17,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.niffy.AndEngineLockStepEngine.exceptions.ClientDoesNotExist;
+import com.niffy.AndEngineLockStepEngine.exceptions.NotConnectedToClient;
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
@@ -46,7 +48,7 @@ public abstract class BaseSelectorThread extends BaseCommunicationThread impleme
 	protected int mBufferCapacity = 8192;
 	protected ByteBuffer readBuffer = ByteBuffer.allocate(8192);
 	protected List<ChangeRequest> mPendingChanges = new LinkedList<ChangeRequest>();
-	protected Map<String, ArrayList<ByteBuffer>> mPendingData = new HashMap<String, ArrayList<ByteBuffer>>();
+	protected Map<InetSocketAddress, ArrayList<ByteBuffer>> mPendingData = new HashMap<InetSocketAddress, ArrayList<ByteBuffer>>();
 	protected HashMap<InetSocketAddress, Connection> mChannelMap = new HashMap<InetSocketAddress, Connection>();
 
 	// ===========================================================
@@ -101,8 +103,17 @@ public abstract class BaseSelectorThread extends BaseCommunicationThread impleme
 	// ===========================================================
 
 	@Override
-	public void send(InetSocketAddress pAddress, byte[] pData) {
+	public void send(InetSocketAddress pAddress, byte[] pData) throws NotConnectedToClient, ClientDoesNotExist {
 
+	}
+
+	@Override
+	public void terminate() {
+		/*
+		 * TODO how should we terminate the thread?
+		 * Need some structured way of closing connections.
+		 * Perhaps inform, then close, and check in error exceptions?
+		 */
 	}
 
 	// ===========================================================

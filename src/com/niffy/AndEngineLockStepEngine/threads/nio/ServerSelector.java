@@ -18,8 +18,6 @@ import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.os.Looper;
-
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
@@ -196,21 +194,26 @@ public class ServerSelector extends BaseSelectorThread {
 	 */
 	@Override
 	protected void write(SelectionKey pKey) throws IOException, CancelledKeyException {
+		/*
+		 * TODO do we need to write on a server selector?
+		 */
 		SocketChannel socketChannel;
 		String connectionIP;
+		InetSocketAddress address;
 		Connection con = (Connection) pKey.attachment();
 		if (con != null) {
 			socketChannel = con.getSocketChannel();
 			connectionIP = con.getAddress().getAddress().getHostAddress();
+			address = con.getAddress();
 		} else {
 			socketChannel = (SocketChannel) pKey.channel();
-			InetSocketAddress address = (InetSocketAddress) socketChannel.socket().getRemoteSocketAddress();
+			address = (InetSocketAddress) socketChannel.socket().getRemoteSocketAddress();
 			connectionIP = address.getAddress().getHostAddress();
 			log.warn("Could not get Connection attachment for IP: {}", connectionIP);
 		}
 
 		synchronized (this.mPendingData) {
-			ArrayList<ByteBuffer> queue = this.mPendingData.get(connectionIP);
+			ArrayList<ByteBuffer> queue = this.mPendingData.get(address);
 
 			// Write until there's not more data ...
 			while (!queue.isEmpty()) {
@@ -235,7 +238,7 @@ public class ServerSelector extends BaseSelectorThread {
 	@Override
 	protected void handleChangeRequest(ChangeRequest pChangeRequest) {
 		switch (pChangeRequest.mType) {
-		case ChangeRequestTCP.CHANGEOPS:
+		case ChangeRequest.CHANGEOPS:
 			SelectionKey key = pChangeRequest.mChannel.keyFor(this.mSelector);
 			if (key == null) {
 				log.error("Could not change channel operations for. Null key {} ", pChangeRequest.mChannel.toString());
@@ -257,15 +260,6 @@ public class ServerSelector extends BaseSelectorThread {
 		}
 	}
 
-	@Override
-	public void terminate() {
-		log.warn("Terminating the thread: {}", this.getName());
-		if (!this.mTerminated.getAndSet(true)) {
-			this.mRunning.getAndSet(false);
-			Looper.myLooper().quit();
-			this.interrupt();
-		}
-	}
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================

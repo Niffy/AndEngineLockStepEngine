@@ -7,7 +7,6 @@ import java.nio.channels.CancelledKeyException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NoConnectionPendingException;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -15,6 +14,8 @@ import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.niffy.AndEngineLockStepEngine.exceptions.ClientDoesNotExist;
+import com.niffy.AndEngineLockStepEngine.exceptions.NotConnectedToClient;
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
@@ -217,6 +218,24 @@ public class ClientSelector extends BaseSelectorThread {
 	// Getter & Setter
 	// ===========================================================
 
+	@Override
+	public void send(InetSocketAddress pAddress, byte[] pData) throws NotConnectedToClient, ClientDoesNotExist {
+		if (this.mChannelMap.containsKey(pAddress)) {
+			Connection con = this.mChannelMap.get(pAddress);
+			if (!con.mSocketChannel.isConnected()) {
+				log.error("Went to send a message to: {} but the channel is not connected", pAddress.toString());
+				final String pMessage = "Address: " + pAddress.toString() + " Is added but not is not connected.";
+				throw new NotConnectedToClient(pMessage);
+			} else {
+
+			}
+		} else {
+			log.error("Went to send a message to: {} but no channel exists", pAddress.toString());
+			final String pMessage = "Address: " + pAddress.toString() + "  but no channel exists.";
+			throw new ClientDoesNotExist(pMessage);
+		}
+	}
+
 	// ===========================================================
 	// Methods
 	// ===========================================================
@@ -237,6 +256,19 @@ public class ClientSelector extends BaseSelectorThread {
 		}
 
 		return socketChannel;
+	}
+
+	protected void sendMessage(final Connection pConnection, final byte[] pData) {
+		synchronized (this.mPendingData) {
+			ArrayList<ByteBuffer> queue = this.mPendingData.get(pConnection.getAddress());
+			if (queue == null) {
+				queue = new ArrayList<ByteBuffer>();
+				this.mPendingData.put(pConnection.getAddress(), queue);
+			}
+			queue.add(ByteBuffer.wrap(pData));
+		}
+
+		this.mSelector.wakeup();
 	}
 	// ===========================================================
 	// Inner and Anonymous Classes
