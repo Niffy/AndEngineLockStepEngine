@@ -130,7 +130,7 @@ public class LockstepNetwork implements ILockstepNetwork {
 	}
 
 	@Override
-	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage) {
+	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage, boolean pTCP) {
 		byte[] buf = null;
 		final ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
 		final DataOutputStream dOutput = new DataOutputStream(bOutput);
@@ -142,6 +142,7 @@ public class LockstepNetwork implements ILockstepNetwork {
 			pData.putString("ip", pAddress.getHostAddress());
 			pData.putInt("intended", IntendedFlag.LOCKSTEP);
 			pData.putByteArray("data", buf);
+			pData.putBoolean("method", pTCP);
 			Message msg = this.mCommunicationHandler.getHandler().obtainMessage();
 			msg.what = ITCFlags.SEND_MESSAGE;
 			msg.setData(pData);

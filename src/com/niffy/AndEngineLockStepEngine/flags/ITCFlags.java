@@ -178,6 +178,7 @@ public final class ITCFlags {
 	 */
 	public final static int NEW_CLIENT_CONNECTED = 801;
 
+
 	/**
 	 * All flags that need to be passed to the lockstep engine
 	 */

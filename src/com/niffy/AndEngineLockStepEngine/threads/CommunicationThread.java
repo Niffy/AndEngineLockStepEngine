@@ -68,18 +68,18 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 	@Override
 	public void handlePassedMessage(Message pMessage) {
 		Bundle bundle;
+		String ip;
+		byte[] data;
+		int intended;
+		boolean TCP;
 		switch (pMessage.what) {
 		case ITCFlags.SEND_MESSAGE:
-			/*
-			 * TODO set how to send, TCP or UDP
-			 * as well as using default way.
-			 */
 			bundle = pMessage.getData();
-			final String ip = bundle.getString("ip");
-			final int intended = bundle.getInt("intended", -1);
-			final byte[] data = bundle.getByteArray("data");
-			final boolean TCP = bundle.getBoolean("method", false);
-			this.sendMessageWithPacketHandler(intended, ip, data);
+			ip = bundle.getString("ip");
+			intended = bundle.getInt("intended", -1);
+			data = bundle.getByteArray("data");
+			TCP = bundle.getBoolean("method", false);
+			this.sendMessageWithPacketHandler(intended, ip, data, TCP);
 			break;
 		case ITCFlags.LOCKSTEP_INCREMENT:
 			bundle = pMessage.getData();
@@ -87,12 +87,15 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 			this.mPacketHandler.lockstepIncrement(pStep);
 			break;
 		case ITCFlags.CONNECT_TO:
-			/*
-			 * TODO on what port! get from base options
-			 */
 			bundle = pMessage.getData();
 			final String pAddress = bundle.getString("ip");
 			this.connect(pAddress);
+			break;
+		case ITCFlags.TCP_CLIENT_INCOMMING:
+			bundle = pMessage.getData();
+			ip = bundle.getString("ip");
+			data = bundle.getByteArray("data");
+			this.mPacketHandler.reconstructData(ip, data);
 			break;
 		}
 	}
@@ -137,7 +140,7 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 	 *      com.niffy.AndEngineLockStepEngine.messages.IMessage)
 	 */
 	@Override
-	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage) {
+	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage, boolean pTCP) {
 		return 0;
 	}
 
@@ -182,14 +185,18 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 	 *            to everyone
 	 * @param pData
 	 *            {@link Byte} array of the message to be encapsulated.
+	 * @param pTCP
+	 *            {@link Boolean} <code>true</code> to send by TCP
+	 *            <code>false</code> by UDP
 	 */
-	protected void sendMessageWithPacketHandler(final int pIntended, final String pAddress, final byte[] pData) {
+	protected void sendMessageWithPacketHandler(final int pIntended, final String pAddress, final byte[] pData,
+			final boolean pTCP) {
 		if (pAddress == null) {
-			this.sendMessageWithPacketHandler(pIntended, pData);
+			this.sendMessageWithPacketHandler(pIntended, pData, pTCP);
 		} else {
 			try {
 				InetAddress pAddressCast = InetAddress.getByName(pAddress);
-				this.sendMessageWithPacketHandler(pIntended, pAddressCast, pData);
+				this.sendMessageWithPacketHandler(pIntended, pAddressCast, pData, pTCP);
 			} catch (UnknownHostException e) {
 				log.error("Could not cast: {} to an InetAddress", pAddress, e);
 				this.networkMessageFailure(pAddress, pData, ITCFlags.NETWORK_SEND_MESSAGE_FAILURE,
@@ -211,16 +218,21 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 	 * @param pData
 	 *            {@link Byte} array of the message to be encapsulated.
 	 */
-	protected void sendMessageWithPacketHandler(final int pIntended, final InetAddress pAddress, final byte[] pData) {
+	protected void sendMessageWithPacketHandler(final int pIntended, final InetAddress pAddress, final byte[] pData,
+			final boolean pTCP) {
 		MessageEncapsulated pMessage = (MessageEncapsulated) this.obtainMessage(MessageFlag.ENCAPSULATED);
 		pMessage.setData(pData);
-		pMessage.setRequireAck(true);
+		if (pTCP) {
+			pMessage.setRequireAck(false);
+		} else {
+			pMessage.setRequireAck(true);
+		}
 		if (pIntended != -1) {
 			pMessage.setIntended(pIntended);
 		} else {
 			pMessage.setIntended(IntendedFlag.LOCKSTEP_CLIENT);
 		}
-		this.mPacketHandler.sendMessage(pAddress, pMessage);
+		this.mPacketHandler.sendMessage(pAddress, pMessage, pTCP);
 	}
 
 	/**
@@ -231,10 +243,10 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 	 * @param pData
 	 *            {@link Byte} array of the message to be encapsulated.
 	 */
-	protected void sendMessageWithPacketHandler(final int pIntended, final byte[] pData) {
+	protected void sendMessageWithPacketHandler(final int pIntended, final byte[] pData, final boolean pTCP) {
 		final int pClientCount = this.mClients.size();
 		for (int i = 0; i < pClientCount; i++) {
-			this.sendMessageWithPacketHandler(pIntended, this.mClients.get(i), pData);
+			this.sendMessageWithPacketHandler(pIntended, this.mClients.get(i), pData, pTCP);
 		}
 	}
 
@@ -245,7 +257,7 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 		pMessage.setIntended(pIntended);
 		final int pClientCount = this.mClients.size();
 		for (int i = 0; i < pClientCount; i++) {
-			this.mPacketHandler.sendMessage(this.mClients.get(i), pMessage);
+			this.mPacketHandler.sendMessage(this.mClients.get(i), pMessage, true); /* Error so send over tcp?*/
 		}
 		this.recycleMessage(pMessage);
 	}
@@ -270,7 +282,7 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 		pMessage.setSender(this.mAddress.toString());
 		final int pClientCount = this.mClients.size();
 		for (int i = 0; i < pClientCount; i++) {
-			this.mPacketHandler.sendMessage(this.mClients.get(i), pMessage);
+			this.mPacketHandler.sendMessage(this.mClients.get(i), pMessage, true); /* send over TCP*/
 		}
 		this.recycleMessage(pMessage);
 	}

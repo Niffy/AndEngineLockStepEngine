@@ -155,7 +155,7 @@ public class AckWindowManager implements IAckWindowManager {
 		ack.setRequireAck(false);
 		ack.setIntended(IntendedFlag.NETWORK);
 		ack.addSequences(pAcksSent);
-		this.mParent.sendMessage(pAddress, ack);
+		this.mParent.sendMessage(pAddress, ack, false);
 		this.mParent.recycleMessage(ack);
 	}
 	// ===========================================================

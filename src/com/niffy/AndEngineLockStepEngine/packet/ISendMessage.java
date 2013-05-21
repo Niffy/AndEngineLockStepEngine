@@ -14,9 +14,11 @@ public interface ISendMessage {
 	 *            {@link InetAddress} of client to contact.
 	 * @param pMessage
 	 *            Message to send, <b>MUST</b> extend {@link IMessage}
+	 * @param pTCP
+	 *            <code>true</code> to use TCP <code>false</code> to send as UDP
 	 * @return {@link IPacketHandler} should have handled this.
 	 */
-	public <T extends IMessage> int sendMessage(final InetAddress pAddress, final T pMessage);
+	public <T extends IMessage> int sendMessage(final InetAddress pAddress, final T pMessage, final boolean pTCP);
 
 	/**
 	 * Obtain a message.

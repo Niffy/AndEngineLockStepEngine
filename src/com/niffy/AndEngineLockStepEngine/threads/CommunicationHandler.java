@@ -9,10 +9,14 @@ import java.net.InetSocketAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.R.bool;
 import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
 
+import com.niffy.AndEngineLockStepEngine.exceptions.ClientDoesNotExist;
+import com.niffy.AndEngineLockStepEngine.exceptions.ClientPendingClosure;
+import com.niffy.AndEngineLockStepEngine.exceptions.NotConnectedToClient;
 import com.niffy.AndEngineLockStepEngine.flags.ErrorCodes;
 import com.niffy.AndEngineLockStepEngine.flags.ITCFlags;
 import com.niffy.AndEngineLockStepEngine.messages.IMessage;
@@ -113,15 +117,7 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 	}
 
 	@Override
-	protected void connect(final String pAddress) {
-		/*
-		 * TODO send to TCPClient to create connection.
-		 * TODO implement a circle. When we connect as client we expect a connection back in the server region
-		 */
-	}
-
-	@Override
-	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage) {
+	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage, boolean pTCP) {
 		log.debug("Send Message to: {}", pAddress.getHostAddress());
 		byte[] pData = null;
 		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get()) {
@@ -133,30 +129,27 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 				dOutput.flush();
 				bOutput.flush();
 				pData = bOutput.toByteArray();
+				if(pTCP){
+					this.mTCPClient.send(pAddress, bOutput.toByteArray());
+				}else{
+					this.mTCPClient.send(pAddress, bOutput.toByteArray());
+				}
 				// TODO send via mMainSelector
 			} catch (IOException e) {
 				log.error("Error sending message to client: {}", pAddress, e);
 				this.networkMessageFailure(pAddress.toString(), pData, ITCFlags.NETWORK_SEND_MESSAGE_FAILURE,
 						ErrorCodes.COULD_NOT_SEND);
+			}catch (ClientPendingClosure e){
+				log.error("Error sending message to client: {}", pAddress, e);
+			}catch (ClientDoesNotExist e){
+				log.error("Error sending message to client: {}", pAddress, e);
+			}catch (NotConnectedToClient e){
+				log.error("Error sending message to client: {}", pAddress, e);
 			}
 		}
 		return 0;
 	}
 
-	@Override
-	protected void producePoolItems() {
-		super.producePoolItems();
-	}
-
-	@Override
-	protected void sendMessageWithPacketHandler(final int pIntended, InetAddress pAddress, byte[] pData) {
-		super.sendMessageWithPacketHandler(pIntended, pAddress, pData);
-	}
-
-	@Override
-	protected void sendMessageWithPacketHandler(final int pIntended, byte[] pData) {
-		super.sendMessageWithPacketHandler(pIntended, pData);
-	}
 
 	@Override
 	public void terminate() {
@@ -173,6 +166,19 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 		this.mTCPClient.removeClient(pAddress);
 		this.mTCPServer.removeClient(pAddress);
 		this.mUDP.removeClient(pAddress);
+	}
+
+	@Override
+	protected void connect(final String pAddress) {
+		InetAddress address = this.castStringToAddress(pAddress);
+		if (address != null) {
+			this.connect(address);
+		} else {
+			log.error("Could not cast IP to InetAddress to connec to");
+			/*
+			 * TODO throw error?
+			 */
+		}
 	}
 
 	// ===========================================================
@@ -206,9 +212,7 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 		if (this.mTCPClient.containsClient(pAddress)) {
 			clientContains = true;
 		} else {
-			/*
-			 * TODO get TCPServer port from options, call connect to
-			 */
+			this.connect(pAddress);
 		}
 
 		if (this.mTCPServer.containsClient(pAddress)) {
@@ -282,6 +286,19 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 			this.mMainSelector = this.mTCPClient;
 		}
 
+	}
+
+	protected void connect(final InetAddress pAddress) {
+		if (!this.mTCPClient.containsClient(pAddress) && !this.mTCPServer.containsClient(pAddress)) {
+			InetSocketAddress socketAddress = new InetSocketAddress(pAddress, this.mBaseOptions.getTCPServerPort());
+			try {
+				this.mTCPClient.connectTo(socketAddress);
+			} catch (IOException e) {
+				log.error("Could not connect to {}", pAddress, e);
+			}
+		} else {
+			log.error("Went to connect to {} but already is!", pAddress);
+		}
 	}
 	// ===========================================================
 	// Inner and Anonymous Classes

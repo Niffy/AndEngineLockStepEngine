@@ -87,13 +87,13 @@ public class PacketHandler implements IPacketHandler {
 	}
 
 	@Override
-	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage) {
+	public <T extends IMessage> int sendMessage(InetAddress pAddress, T pMessage, boolean pTCP) {
 		final int pSequence = this.mSequence.getAndIncrement();
 		pMessage.setSequence(pSequence);
 		if (pMessage.getRequireAck()) {
 			this.mAckManager.addAwaitingAck(pAddress, pSequence);
 		}
-		this.mThread.sendMessage(pAddress, pMessage);
+		this.mThread.sendMessage(pAddress, pMessage, pTCP);
 		return pSequence;
 	}
 
@@ -149,7 +149,7 @@ public class PacketHandler implements IPacketHandler {
 			ack.setIntended(IntendedFlag.NETWORK);
 			ack.setRequireAck(false);
 			this.mAckManager.addSentAck(pFrom, pSequence);
-			this.sendMessage(pFrom, ack);
+			this.sendMessage(pFrom, ack, false); /* We use ACKS for UDP don't need it for TCP! */
 			this.recycleMessage(ack);
 		}
 		if (pIntended == IntendedFlag.CLIENT) {

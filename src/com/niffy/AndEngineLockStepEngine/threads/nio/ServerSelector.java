@@ -195,7 +195,17 @@ public class ServerSelector extends BaseSelectorThread implements IServerSelecto
 			this.handleConnectionShutdown(pKey, socketChannel, address.getAddress());
 			return;
 		}
-		/* TODO pass message out of thread */
+		
+		byte[] dataIn = new byte[numRead];
+		System.arraycopy(this.readBuffer.array(), 0, dataIn, 0, numRead);
+		
+		Message msg = this.mHandler.obtainMessage();
+		msg.what = ITCFlags.TCP_CLIENT_INCOMMING;
+		Bundle data = new Bundle();
+		data.putString("ip", connectionIP);
+		data.putByteArray("data", dataIn);
+		msg.setData(data);
+		this.mHandler.sendMessage(msg);
 	}
 
 	/**
