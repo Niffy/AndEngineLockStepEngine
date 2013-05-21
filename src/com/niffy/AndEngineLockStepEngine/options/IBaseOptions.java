@@ -18,9 +18,13 @@ public interface IBaseOptions {
 
 	public int getUDPPort();
 
-	public void setTCPPort(final int pTCPPort);
+	public void setTCPServerPort(final int pTCPPort);
 
-	public int getTCPPort();
+	public int getTCPServerPort();
+	
+	public void setTCPClientPort(final int pTCPPort);
+
+	public int getTCPClientPort();
 
 	public void setAckWindowSize(final int pWindowSize);
 

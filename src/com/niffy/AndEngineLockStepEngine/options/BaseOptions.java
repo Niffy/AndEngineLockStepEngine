@@ -20,7 +20,8 @@ public class BaseOptions implements IBaseOptions {
 	// ===========================================================
 	protected InetAddress mHostIP;
 	protected int mBufferSize = 512;
-	protected int mTCPPort = 9999;
+	protected int mTCPServerPort = 9999;
+	protected int mTCPClientPort = 9998;
 	protected int mUDPPort = 9998;
 	protected int mStepsBeforeCrisis = 0;
 	protected long mStandardTickLength = 0;
@@ -41,7 +42,8 @@ public class BaseOptions implements IBaseOptions {
 	public BaseOptions(final IBaseOptions pBaseOptions) {
 		this();
 		this.mHostIP = pBaseOptions.getHostIP();
-		this.mTCPPort = pBaseOptions.getTCPPort();
+		this.mTCPServerPort = pBaseOptions.getTCPServerPort();
+		this.mTCPClientPort = pBaseOptions.getTCPClientPort();
 		this.mUDPPort = pBaseOptions.getUDPPort();
 		this.mStepsBeforeCrisis = pBaseOptions.getStepsBeforeCrisis();
 		this.mStandardTickLength = pBaseOptions.getStandardTickLength();
@@ -122,13 +124,23 @@ public class BaseOptions implements IBaseOptions {
 	}
 
 	@Override
-	public void setTCPPort(int pTCPPort) {
-		this.mTCPPort = pTCPPort;
+	public void setTCPServerPort(int pTCPPort) {
+		this.mTCPServerPort = pTCPPort;
 	}
 
 	@Override
-	public int getTCPPort() {
-		return this.mTCPPort;
+	public int getTCPServerPort() {
+		return this.mTCPServerPort;
+	}
+
+	@Override
+	public void setTCPClientPort(int pTCPPort) {
+		this.mTCPClientPort = pTCPPort;
+	}
+
+	@Override
+	public int getTCPClientPort() {
+		return this.mTCPClientPort;
 	}
 
 	@Override
@@ -168,9 +180,9 @@ public class BaseOptions implements IBaseOptions {
 
 	@Override
 	public int getPoolProperties(String pTag) {
-		if(this.mMessagePoolOptions.containsKey(pTag)){
+		if (this.mMessagePoolOptions.containsKey(pTag)) {
 			return this.mMessagePoolOptions.get(pTag);
-		}else{
+		} else {
 			return -1;
 		}
 	}
