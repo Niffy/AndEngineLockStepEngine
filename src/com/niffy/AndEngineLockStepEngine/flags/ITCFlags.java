@@ -4,8 +4,11 @@ import android.os.Bundle;
 import android.os.Message;
 
 import com.niffy.AndEngineLockStepEngine.LockstepNetwork;
+import com.niffy.AndEngineLockStepEngine.threads.CommunicationHandler;
 import com.niffy.AndEngineLockStepEngine.threads.CommunicationThread;
+import com.niffy.AndEngineLockStepEngine.threads.nio.ClientSelector;
 import com.niffy.AndEngineLockStepEngine.threads.nio.SelectorFlag;
+import com.niffy.AndEngineLockStepEngine.threads.nio.ServerSelector;
 
 /**
  * Flags to indicate packet type
@@ -168,6 +171,12 @@ public final class ITCFlags {
 	 * int key <code>selector</code> of vale from {@link SelectorFlag}
 	 */
 	public final static int NETWORK_SELECTER_DEFAULT = 800;
+	/**
+	 * To be passed from {@link ServerSelector} to {@link CommunicationHandler}.
+	 * Should inform {@link ClientSelector} of this to create connection back.
+	 * Inform UDP selector to allow and accept connections from this IP.
+	 */
+	public final static int NEW_CLIENT_CONNECTED = 801;
 
 	/**
 	 * All flags that need to be passed to the lockstep engine

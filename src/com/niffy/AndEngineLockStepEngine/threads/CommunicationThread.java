@@ -88,7 +88,7 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 			break;
 		case ITCFlags.CONNECT_TO:
 			/*
-			 * TODO on what port!
+			 * TODO on what port! get from base options
 			 */
 			bundle = pMessage.getData();
 			final String pAddress = bundle.getString("ip");

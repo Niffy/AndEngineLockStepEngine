@@ -19,7 +19,8 @@ import com.niffy.AndEngineLockStepEngine.messages.IMessage;
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
-import com.niffy.AndEngineLockStepEngine.threads.nio.ISelectorThread;
+import com.niffy.AndEngineLockStepEngine.threads.nio.IClientSelector;
+import com.niffy.AndEngineLockStepEngine.threads.nio.IServerSelector;
 import com.niffy.AndEngineLockStepEngine.threads.nio.SelectorFlag;
 
 public class CommunicationHandler extends CommunicationThread implements ICommunicationHandler {
@@ -27,17 +28,13 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 	// Constants
 	// ===========================================================
 	private final Logger log = LoggerFactory.getLogger(CommunicationHandler.class);
-	/*
-	 * TODO Set main selector to use.
-	 * TODO handle sending via TCP or UDP.
-	 */
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	protected ISelectorThread mUDP;
-	protected ISelectorThread mTCPServer;
-	protected ISelectorThread mTCPClient;
-	protected ISelectorThread mMainSelector;
+	protected IClientSelector mUDP;
+	protected IServerSelector mTCPServer;
+	protected IClientSelector mTCPClient;
+	protected IClientSelector mMainSelector;
 	protected int mCurrentSelectorInUse;
 
 	// ===========================================================
@@ -54,18 +51,18 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 	// ===========================================================
 
 	@Override
-	public void setUDPSelectorThread(ISelectorThread pSelectorThread) {
+	public void setUDPSelectorThread(IClientSelector pSelectorThread) {
 		this.mUDP = pSelectorThread;
 	}
 
 	@Override
-	public void setTCPClientSelectorThread(ISelectorThread pSelectorThread) {
-		this.mTCPServer = pSelectorThread;
+	public void setTCPClientSelectorThread(IClientSelector pSelectorThread) {
+		this.mTCPClient = pSelectorThread;
 	}
 
 	@Override
-	public void setTCPServerSelectorThread(ISelectorThread pSelectorThread) {
-		this.mTCPClient = pSelectorThread;
+	public void setTCPServerSelectorThread(IServerSelector pSelectorThread) {
+		this.mTCPServer = pSelectorThread;
 	}
 
 	@Override
@@ -93,25 +90,24 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 		String ip;
 		byte[] data;
 		switch (pMessage.what) {
-		case ITCFlags.TCP_CLIENT_INCOMMING:
-			bundle = pMessage.getData();
-			ip = bundle.getString("ip");
-			data = bundle.getByteArray("data");
-			this.mPacketHandler.reconstructData(ip, data);
-			break;
-		case ITCFlags.NETWORK_TCP_EXCEPTION:
-			bundle = pMessage.getData();
-			ip = bundle.getString("ip");
-			this.clientDisconect(ip);
-			Message msg = this.mCallerThreadHandler.obtainMessage();
-			msg.what = ITCFlags.CLIENT_DISCONNECTED;
-			msg.setData(bundle);
-			this.mCallerThreadHandler.sendMessage(msg);
-			break;
 		case ITCFlags.NETWORK_SELECTER_DEFAULT:
 			bundle = pMessage.getData();
 			int selector = bundle.getInt("selector", 2);
 			this.setMainSelector(selector);
+			break;
+		case ITCFlags.NEW_CLIENT_CONNECTED:
+			bundle = pMessage.getData();
+			ip = bundle.getString("ip");
+			this.clientJoin(ip);
+			break;
+		case ITCFlags.CLIENT_ERROR:
+			bundle = pMessage.getData();
+			ip = bundle.getString("ip");
+			break;
+		case ITCFlags.CLIENT_DISCONNECTED:
+			bundle = pMessage.getData();
+			ip = bundle.getString("ip");
+			this.clientDisconnect(ip);
 			break;
 		}
 	}
@@ -171,6 +167,14 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 		}
 	}
 
+	@Override
+	public void removeClient(InetAddress pAddress) {
+		super.removeClient(pAddress);
+		this.mTCPClient.removeClient(pAddress);
+		this.mTCPServer.removeClient(pAddress);
+		this.mUDP.removeClient(pAddress);
+	}
+
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================
@@ -178,47 +182,106 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 	// ===========================================================
 	// Methods
 	// ===========================================================
+	protected void clientJoin(final String pIP) {
+		InetAddress pAddress = this.castStringToAddress(pIP);
+		if (pAddress != null) {
+			this.clientJoin(pAddress);
+		} else {
+			log.error("Could not cast IP to InetAddress on client join");
+			/*
+			 * TODO cannot cast address so remove clients
+			 */
+		}
+	}
+
+	/**
+	 * Handle the logic of all selectors aware of client and have a valid
+	 * connection, if so inform the game of new client.
+	 * 
+	 * @param pAddress
+	 */
 	protected void clientJoin(final InetAddress pAddress) {
-		/*
-		 * TODO check if TCPClient has made a connection to the caller.
-		 * If not initiate so, wait for TCPClient to inform of connect 
-		 * success then call this method again
-		 */
-		/*
-		this.mPacketHandler.addClient(pAddress);
+		boolean clientContains = false;
+		boolean serverContains = false;
+		if (this.mTCPClient.containsClient(pAddress)) {
+			clientContains = true;
+		} else {
+			/*
+			 * TODO get TCPServer port from options, call connect to
+			 */
+		}
+
+		if (this.mTCPServer.containsClient(pAddress)) {
+			serverContains = true;
+		} else {
+			// Not got a connection yet!
+		}
+
+		if (clientContains && serverContains) {
+			this.mPacketHandler.addClient(pAddress);
+			Message msg = this.mCallerThreadHandler.obtainMessage();
+			msg.what = ITCFlags.CLIENT_CONNECTED;
+			final Bundle pBundle = new Bundle();
+			pBundle.putString("ip", pAddress.getHostAddress());
+			msg.setData(pBundle);
+			this.mCallerThreadHandler.sendMessage(msg);
+		}
+	}
+
+	protected void clientDisconnect(final String pIP) {
+		InetAddress pAddress = this.castStringToAddress(pIP);
+		if (pAddress != null) {
+			this.clientDisconnect(pAddress);
+		} else {
+			log.error("Could not cast IP to InetAddress on client disconnect");
+			/*
+			 * TODO throw error
+			 */
+		}
+	}
+
+	protected void clientDisconnect(final InetAddress pAddress) {
+		this.removeClient(pAddress);
 		Message msg = this.mCallerThreadHandler.obtainMessage();
-		msg.what = ITCFlags.CLIENT_CONNECTED;
+		msg.what = ITCFlags.CLIENT_DISCONNECTED;
 		final Bundle pBundle = new Bundle();
 		pBundle.putString("ip", pAddress.getHostAddress());
 		msg.setData(pBundle);
 		this.mCallerThreadHandler.sendMessage(msg);
-		 */
 	}
 
-	protected void clientDisconect(final String pAddress) {
-		/*
-		 * TODO remove in TCPClient and TCPServer
-		 */
-		/*
-		try {
-			InetAddress addressCast = InetAddress.getByName(pAddress);
-			this.removeClient(addressCast);
-		} catch (UnknownHostException e) {
-			log.error("Could not disconnect client as could not cast address: {}", pAddress, e);
+	protected void clientError(final String pIP) {
+		InetAddress pAddress = this.castStringToAddress(pIP);
+		if (pAddress != null) {
+			this.clientError(pAddress);
+		} else {
+			log.error("Could not cast IP to InetAddress on client error");
+			/*
+			 * TODO throw error?
+			 */
 		}
-		 */
 	}
-	
-	protected void setMainSelector(final int pSelection){
+
+	protected void clientError(final InetAddress pAddress) {
+		this.removeClient(pAddress);
+		Message msg = this.mCallerThreadHandler.obtainMessage();
+		msg.what = ITCFlags.CLIENT_ERROR;
+		final Bundle pBundle = new Bundle();
+		pBundle.putString("ip", pAddress.getHostAddress());
+		msg.setData(pBundle);
+		this.mCallerThreadHandler.sendMessage(msg);
+	}
+
+	protected void setMainSelector(final int pSelection) {
 		this.mCurrentSelectorInUse = pSelection;
-		if(pSelection == SelectorFlag.TCP_CLIENT){
+		if (pSelection == SelectorFlag.TCP_CLIENT) {
 			this.mMainSelector = this.mTCPClient;
-		}else if(pSelection == SelectorFlag.TCP_SERVER){
-			this.mMainSelector = this.mTCPServer;
-		}else if(pSelection == SelectorFlag.UDP){
+		} else if (pSelection == SelectorFlag.UDP) {
 			this.mMainSelector = this.mUDP;
+		} else {
+			this.mMainSelector = this.mTCPClient;
 		}
-		
+
 	}
 	// ===========================================================
 	// Inner and Anonymous Classes

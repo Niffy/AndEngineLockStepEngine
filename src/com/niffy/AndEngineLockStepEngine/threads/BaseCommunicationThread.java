@@ -2,6 +2,7 @@ package com.niffy.AndEngineLockStepEngine.threads;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
@@ -92,7 +93,14 @@ public abstract class BaseCommunicationThread extends Thread implements IBaseCom
 	// ===========================================================
 	// Methods
 	// ===========================================================
-
+	protected InetAddress castStringToAddress(final String pIP) {
+		try {
+			return InetAddress.getByName(pIP);
+		} catch (UnknownHostException e) {
+			log.error("Could not cast String to InetAddress: {}", pIP);
+		}
+		return null;
+	}
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================

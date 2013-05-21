@@ -1,11 +1,13 @@
 package com.niffy.AndEngineLockStepEngine.threads.nio;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.AbstractSelectableChannel;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
@@ -17,8 +19,11 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.os.Bundle;
+import android.os.Message;
+
 import com.niffy.AndEngineLockStepEngine.exceptions.ClientDoesNotExist;
-import com.niffy.AndEngineLockStepEngine.exceptions.NotConnectedToClient;
+import com.niffy.AndEngineLockStepEngine.flags.ITCFlags;
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
@@ -48,8 +53,13 @@ public abstract class BaseSelectorThread extends BaseCommunicationThread impleme
 	protected int mBufferCapacity = 8192;
 	protected ByteBuffer readBuffer = ByteBuffer.allocate(8192);
 	protected List<ChangeRequest> mPendingChanges = new LinkedList<ChangeRequest>();
-	protected Map<InetSocketAddress, ArrayList<ByteBuffer>> mPendingData = new HashMap<InetSocketAddress, ArrayList<ByteBuffer>>();
-	protected HashMap<InetSocketAddress, Connection> mChannelMap = new HashMap<InetSocketAddress, Connection>();
+	protected Map<InetAddress, ArrayList<ByteBuffer>> mPendingData = new HashMap<InetAddress, ArrayList<ByteBuffer>>();
+	protected HashMap<InetAddress, Connection> mChannelMap = new HashMap<InetAddress, Connection>();
+	/**
+	 * Any {@link InetAddress} in here is pending a closure, so do not add
+	 * anymore requests to send.
+	 */
+	protected ArrayList<InetAddress> mPendingClosure = new ArrayList<InetAddress>();
 
 	// ===========================================================
 	// Constructors
@@ -99,13 +109,8 @@ public abstract class BaseSelectorThread extends BaseCommunicationThread impleme
 	}
 
 	// ===========================================================
-	// Methods for/from SuperClass/Interfaces
+	// Methods for/from SuperClass/Interfaces IBaseThread
 	// ===========================================================
-
-	@Override
-	public void send(InetSocketAddress pAddress, byte[] pData) throws NotConnectedToClient, ClientDoesNotExist {
-
-	}
 
 	@Override
 	public void terminate() {
@@ -114,6 +119,39 @@ public abstract class BaseSelectorThread extends BaseCommunicationThread impleme
 		 * Need some structured way of closing connections.
 		 * Perhaps inform, then close, and check in error exceptions?
 		 */
+	}
+
+	// ===========================================================
+	// Methods for/from SuperClass/Interfaces ISelectorThread
+	// ===========================================================
+	@Override
+	public void removeClient(InetAddress pAddress) {
+		SocketChannel channel = null;
+
+		synchronized (this.mPendingClosure) {
+			this.mPendingClosure.add(pAddress);
+		}
+
+		synchronized (this.mChannelMap) {
+			if (this.mChannelMap.containsKey(pAddress)) {
+				Connection con = this.mChannelMap.get(pAddress);
+				channel = con.getSocketChannel();
+			}
+		}
+
+		if (channel != null) {
+			synchronized (this.mPendingChanges) {
+				this.mPendingChanges.add(new ChangeRequest(channel, ChangeRequest.REMOVECLIENT,
+						SelectionKey.OP_CONNECT, pAddress));
+			}
+		}
+	}
+
+	@Override
+	public boolean containsClient(InetAddress pAddress) {
+		synchronized (this.mChannelMap) {
+			return this.mChannelMap.containsKey(pAddress);
+		}
 	}
 
 	// ===========================================================
@@ -144,7 +182,7 @@ public abstract class BaseSelectorThread extends BaseCommunicationThread impleme
 
 	}
 
-	protected void read(SelectionKey pKey) throws IOException {
+	protected void read(SelectionKey pKey) throws IOException, ClientDoesNotExist {
 
 	}
 
@@ -170,18 +208,41 @@ public abstract class BaseSelectorThread extends BaseCommunicationThread impleme
 	 * @throws IOException
 	 *             when {@link AbstractSelectableChannel#close()} is called
 	 */
-	protected void handleConnectionFailure(SelectionKey pKey, AbstractSelectableChannel pChannel) throws IOException {
-		log.warn("A connection failure has occured.");
+	protected void handleConnectionFailure(SelectionKey pKey, AbstractSelectableChannel pChannel,
+			final InetAddress pAddress) throws IOException {
+		log.warn("A connection failure has occured. : {}", pAddress);
 		log.warn("Cancel key: {}", pKey.toString());
 		pKey.cancel();
 		log.warn("Closing channel: {}", pChannel.toString());
 		pChannel.close();
+		Message msg = this.mHandler.obtainMessage();
+		msg.what = ITCFlags.CLIENT_ERROR;
+		Bundle data = new Bundle();
+		data.putString("ip", pAddress.toString());
+		msg.setData(data);
+		this.mHandler.sendMessage(msg);
 	}
 
-	protected void handleConnectionShutdown(SelectionKey pKey, AbstractSelectableChannel pChannel) throws IOException {
-		log.warn("Shuting down connection cleanly");
+	protected void handleConnectionShutdown(SelectionKey pKey, AbstractSelectableChannel pChannel,
+			final InetAddress pAddress) throws IOException, ClientDoesNotExist {
+		log.warn("Shuting down connection cleanly: {} ", pAddress);
 		pChannel.close();
 		pKey.cancel();
+		synchronized (this.mChannelMap) {
+			if (this.mChannelMap.containsKey(pAddress)) {
+				this.mChannelMap.remove(pAddress);
+			} else {
+				final String pMessage = "Went to shut down channel and key cleanly for: " + pAddress.toString()
+						+ " but not in channel map";
+				throw new ClientDoesNotExist(pMessage);
+			}
+		}
+		Message msg = this.mHandler.obtainMessage();
+		msg.what = ITCFlags.CLIENT_DISCONNECTED;
+		Bundle data = new Bundle();
+		data.putString("ip", pAddress.toString());
+		msg.setData(data);
+		this.mHandler.sendMessage(msg);
 	}
 
 	protected void handleChangeRequest(final ChangeRequest pChangeRequest) {

@@ -1,32 +1,33 @@
-package com.niffy.AndEngineLockStepEngine.threads.nio;
+package com.niffy.AndEngineLockStepEngine.exceptions;
 
-import java.net.InetAddress;
-import java.nio.channels.spi.AbstractSelectableChannel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ChangeRequest {
+/**
+ * Indicates that we cannot send anymore to this client as we are pending a
+ * closure to shut down connection to the client.
+ * 
+ * @author Paul Robinson
+ * @since 16 May 2013 16:07:08
+ */
+public class ClientPendingClosure extends Exception {
+	private static final long serialVersionUID = -133241486305463823L;
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final int REGISTER = 1;
-	public static final int CHANGEOPS = 2;
-	public static final int REMOVECLIENT = 3;
+	@SuppressWarnings("unused")
+	private final Logger log = LoggerFactory.getLogger(ClientPendingClosure.class);
+
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	public AbstractSelectableChannel mChannel;
-	public int mType;
-	public int mOps;
-	public InetAddress mAddress;
 
 	// ===========================================================
 	// Constructors
 	// ===========================================================
 
-	public ChangeRequest(AbstractSelectableChannel pSocketChannel, int pType, int pOps, InetAddress pAddress) {
-		this.mChannel = pSocketChannel;
-		this.mType = pType;
-		this.mOps = pOps;
-		this.mAddress = pAddress;
+	public ClientPendingClosure(String pMessage) {
+		super(pMessage);
 	}
 
 	// ===========================================================

@@ -1,6 +1,7 @@
 package com.niffy.AndEngineLockStepEngine.threads.nio;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.CancelledKeyException;
@@ -14,13 +15,18 @@ import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.os.Bundle;
+import android.os.Message;
+
 import com.niffy.AndEngineLockStepEngine.exceptions.ClientDoesNotExist;
+import com.niffy.AndEngineLockStepEngine.exceptions.ClientPendingClosure;
 import com.niffy.AndEngineLockStepEngine.exceptions.NotConnectedToClient;
+import com.niffy.AndEngineLockStepEngine.flags.ITCFlags;
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
 
-public class ClientSelector extends BaseSelectorThread {
+public class ClientSelector extends BaseSelectorThread implements IClientSelector {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -42,7 +48,7 @@ public class ClientSelector extends BaseSelectorThread {
 	}
 
 	// ===========================================================
-	// Methods for/from SuperClass/Interfaces
+	// Methods for/from SuperClass/Interfaces BaseSelectorThread
 	// ===========================================================
 	@Override
 	public void run() {
@@ -110,24 +116,26 @@ public class ClientSelector extends BaseSelectorThread {
 			socketChannel.finishConnect();
 		} catch (NoConnectionPendingException e) {
 			log.error("NoConnectionPendingException", e);
-			/* TODO Handle this */
-			this.handleConnectionFailure(pKey, socketChannel);
+			this.handleConnectionFailure(pKey, socketChannel, address.getAddress());
 		} catch (ClosedChannelException e) {
 			log.error("ClosedChannelException", e);
-			/* TODO Handle this */
-			this.handleConnectionFailure(pKey, socketChannel);
+			this.handleConnectionFailure(pKey, socketChannel, address.getAddress());
 		} catch (IOException e) {
 			log.error("IOException", e);
-			/* TODO Handle this */
-			this.handleConnectionFailure(pKey, socketChannel);
+			this.handleConnectionFailure(pKey, socketChannel, address.getAddress());
 			return;
 		}
-
-		this.mChannelMap.put(con.mAddress, con);
+		synchronized (this.mChannelMap) {
+			this.mChannelMap.put(con.mAddress.getAddress(), con);
+		}
 		pKey.interestOps(SelectionKey.OP_WRITE);
-		/*
-		 * TODO inform communication handler the connection has finished.
-		 */
+
+		Message msg = this.mHandler.obtainMessage();
+		msg.what = ITCFlags.NEW_CLIENT_CONNECTED;
+		Bundle data = new Bundle();
+		data.putString("ip", address.getAddress().getHostAddress());
+		msg.setData(data);
+		this.mHandler.sendMessage(msg);
 	}
 
 	/**
@@ -211,30 +219,57 @@ public class ClientSelector extends BaseSelectorThread {
 				 */
 			}
 			break;
+		case ChangeRequest.REMOVECLIENT:
+			try {
+				this.handleConnectionShutdown(pChangeRequest.mChannel.keyFor(this.mSelector), pChangeRequest.mChannel,
+						pChangeRequest.mAddress);
+			} catch (IOException e) {
+				log.error("Could not shut downconnection.", e);
+			} catch (ClientDoesNotExist e) {
+				log.error("Could not shut downconnection.", e);
+			}
 		}
+	}
+
+	// ===========================================================
+	// Methods for/from SuperClass/Interfaces IClientSelector
+	// ===========================================================
+
+	@Override
+	public void send(InetAddress pAddress, byte[] pData) throws NotConnectedToClient, ClientDoesNotExist,
+			ClientPendingClosure {
+		synchronized (this.mPendingClosure) {
+			if (this.mPendingClosure.contains(pAddress)) {
+				final String pMessage = "Address: " + pAddress.toString() + "  is pending closure.";
+				throw new ClientPendingClosure(pMessage);
+			}
+		}
+		synchronized (this.mChannelMap) {
+			if (this.mChannelMap.containsKey(pAddress)) {
+				Connection con = this.mChannelMap.get(pAddress);
+				if (!con.mSocketChannel.isConnected()) {
+					log.error("Went to send a message to: {} but the channel is not connected", pAddress.toString());
+					final String pMessage = "Address: " + pAddress.toString() + " Is added but not is not connected.";
+					throw new NotConnectedToClient(pMessage);
+				} else {
+					/* TODO send message */
+				}
+			} else {
+				log.error("Went to send a message to: {} but no channel exists", pAddress.toString());
+				final String pMessage = "Address: " + pAddress.toString() + "  but no channel exists.";
+				throw new ClientDoesNotExist(pMessage);
+			}
+		}
+	}
+
+	@Override
+	public void connectTo(InetSocketAddress pAddress) throws IOException {
+		this.initiateConnection(pAddress);
 	}
 
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================
-
-	@Override
-	public void send(InetSocketAddress pAddress, byte[] pData) throws NotConnectedToClient, ClientDoesNotExist {
-		if (this.mChannelMap.containsKey(pAddress)) {
-			Connection con = this.mChannelMap.get(pAddress);
-			if (!con.mSocketChannel.isConnected()) {
-				log.error("Went to send a message to: {} but the channel is not connected", pAddress.toString());
-				final String pMessage = "Address: " + pAddress.toString() + " Is added but not is not connected.";
-				throw new NotConnectedToClient(pMessage);
-			} else {
-
-			}
-		} else {
-			log.error("Went to send a message to: {} but no channel exists", pAddress.toString());
-			final String pMessage = "Address: " + pAddress.toString() + "  but no channel exists.";
-			throw new ClientDoesNotExist(pMessage);
-		}
-	}
 
 	// ===========================================================
 	// Methods
@@ -252,7 +287,7 @@ public class ClientSelector extends BaseSelectorThread {
 		// is ready to complete connection establishment.
 		synchronized (this.mPendingChanges) {
 			this.mPendingChanges.add(new ChangeRequest(socketChannel, ChangeRequest.REGISTER, SelectionKey.OP_CONNECT,
-					pAddress));
+					pAddress.getAddress()));
 		}
 
 		return socketChannel;
@@ -263,7 +298,7 @@ public class ClientSelector extends BaseSelectorThread {
 			ArrayList<ByteBuffer> queue = this.mPendingData.get(pConnection.getAddress());
 			if (queue == null) {
 				queue = new ArrayList<ByteBuffer>();
-				this.mPendingData.put(pConnection.getAddress(), queue);
+				this.mPendingData.put(pConnection.getAddress().getAddress(), queue);
 			}
 			queue.add(ByteBuffer.wrap(pData));
 		}

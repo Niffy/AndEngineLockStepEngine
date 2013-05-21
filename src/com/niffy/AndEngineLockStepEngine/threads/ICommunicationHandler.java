@@ -1,10 +1,13 @@
 package com.niffy.AndEngineLockStepEngine.threads;
 
-import com.niffy.AndEngineLockStepEngine.threads.nio.ISelectorThread;
+import com.niffy.AndEngineLockStepEngine.threads.nio.IClientSelector;
+import com.niffy.AndEngineLockStepEngine.threads.nio.IServerSelector;
 
-public interface ICommunicationHandler extends ICommunicationThread{
+public interface ICommunicationHandler extends ICommunicationThread {
 
-	public void setUDPSelectorThread(final ISelectorThread pSelectorThread);
-	public void setTCPClientSelectorThread(final ISelectorThread pSelectorThread);
-	public void setTCPServerSelectorThread(final ISelectorThread pSelectorThread);
+	public void setUDPSelectorThread(final IClientSelector pSelectorThread);
+
+	public void setTCPClientSelectorThread(final IClientSelector pSelectorThread);
+
+	public void setTCPServerSelectorThread(final IServerSelector pSelectorThread);
 }

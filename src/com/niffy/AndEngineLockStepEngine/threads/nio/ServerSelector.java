@@ -18,11 +18,17 @@ import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.os.Bundle;
+import android.os.Message;
+
+import com.niffy.AndEngineLockStepEngine.exceptions.ClientDoesNotExist;
+import com.niffy.AndEngineLockStepEngine.flags.ITCFlags;
 import com.niffy.AndEngineLockStepEngine.misc.IHandlerMessage;
 import com.niffy.AndEngineLockStepEngine.misc.WeakThreadHandler;
 import com.niffy.AndEngineLockStepEngine.options.IBaseOptions;
+import com.niffy.AndEngineLockStepEngine.threads.CommunicationHandler;
 
-public class ServerSelector extends BaseSelectorThread {
+public class ServerSelector extends BaseSelectorThread implements IServerSelector {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -87,6 +93,8 @@ public class ServerSelector extends BaseSelectorThread {
 						}
 					} catch (IOException e) {
 						log.error("IOException on key operation", e);
+					} catch (ClientDoesNotExist e) {
+						log.error("Client does not exist!");
 					}
 				}
 			} catch (Exception e) {
@@ -113,6 +121,12 @@ public class ServerSelector extends BaseSelectorThread {
 		return found;
 	}
 
+	/**
+	 * This will send a message to the {@link CommunicationHandler} to inform of
+	 * a new client using {@link ITCFlags#NEW_CLIENT_CONNECTED}
+	 * 
+	 * @see com.niffy.AndEngineLockStepEngine.threads.nio.BaseSelectorThread#accept(java.nio.channels.SelectionKey)
+	 */
 	@Override
 	protected void accept(SelectionKey pKey) throws IOException {
 		ServerSocketChannel serverSocketChannel = (ServerSocketChannel) pKey.channel();
@@ -121,15 +135,19 @@ public class ServerSelector extends BaseSelectorThread {
 		socketChannel.configureBlocking(false);
 		socketChannel.register(this.mSelector, SelectionKey.OP_READ);
 		Connection con = new Connection((InetSocketAddress) socket.getRemoteSocketAddress(), socketChannel);
-		this.mChannelMap.put(con.getAddress(), con);
+		this.mChannelMap.put(con.getAddress().getAddress(), con);
 		pKey.attach(con);
-		/* 
-		 * TODO inform of new connection has been made
-		 */
+		Message msg = this.mHandler.obtainMessage();
+		msg.what = ITCFlags.NEW_CLIENT_CONNECTED;
+		Bundle data = new Bundle();
+		final String pIP = con.getAddress().getAddress().getHostAddress();
+		data.putString("ip", pIP);
+		msg.setData(data);
+		this.mHandler.sendMessage(msg);
 	}
 
 	@Override
-	protected void read(SelectionKey pKey) throws IOException {
+	protected void read(SelectionKey pKey) throws IOException, ClientDoesNotExist {
 		SocketChannel socketChannel;
 		InetSocketAddress address;
 		String connectionIP;
@@ -151,26 +169,20 @@ public class ServerSelector extends BaseSelectorThread {
 		try {
 			numRead = socketChannel.read(this.readBuffer);
 		} catch (AsynchronousCloseException e) {
-			log.error("For IP: {}", connectionIP);
 			log.error("AsynchronousCloseException", e);
-			/* TODO Handle this */
-			this.handleConnectionFailure(pKey, socketChannel);
+			this.handleConnectionFailure(pKey, socketChannel, address.getAddress());
 		} catch (NotYetConnectedException e) {
-			log.error("For IP: {}", connectionIP);
 			log.error("NotYetConnectedException", e);
-			this.handleConnectionFailure(pKey, socketChannel);
-			/* TODO Handle this */
+			this.handleConnectionFailure(pKey, socketChannel, address.getAddress());
 		} catch (ClosedChannelException e) {
-			log.error("For IP: {}", connectionIP);
 			log.error("ClosedChannelException", e);
-			this.handleConnectionFailure(pKey, socketChannel);
-			/* TODO Handle this */
+			this.handleConnectionFailure(pKey, socketChannel, address.getAddress());
+			this.removeClient(address.getAddress());
 		} catch (IOException e) {
-			log.error("For IP: {}", connectionIP);
 			log.error("IOException", e);
 			// The remote forcibly closed the connection, cancel
 			// the selection key and close the channel.
-			this.handleConnectionFailure(pKey, socketChannel);
+			this.handleConnectionFailure(pKey, socketChannel, address.getAddress());
 			return;
 		}
 
@@ -180,7 +192,7 @@ public class ServerSelector extends BaseSelectorThread {
 			/* TODO check that closing socketChannel is ok, 
 			 * we were doing pKey.channel().close()
 			 */
-			this.handleConnectionShutdown(pKey, socketChannel);
+			this.handleConnectionShutdown(pKey, socketChannel, address.getAddress());
 			return;
 		}
 		/* TODO pass message out of thread */
@@ -256,6 +268,15 @@ public class ServerSelector extends BaseSelectorThread {
 					 * And remove from any collections
 					 */
 				}
+			}
+		case ChangeRequest.REMOVECLIENT:
+			try {
+				this.handleConnectionShutdown(pChangeRequest.mChannel.keyFor(this.mSelector), pChangeRequest.mChannel,
+						pChangeRequest.mAddress);
+			} catch (IOException e) {
+				log.error("Could not shut downconnection.", e);
+			} catch (ClientDoesNotExist e) {
+				log.error("Could not shut downconnection.", e);
 			}
 		}
 	}
