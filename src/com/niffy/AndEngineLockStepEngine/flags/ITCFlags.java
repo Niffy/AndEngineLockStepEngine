@@ -84,6 +84,7 @@ public final class ITCFlags {
 	 * {@link BaseSocketThread} to shut down the socket
 	 */
 	public final static int NETWORK_TCP_SHUTDOWN_SOCKET = 12;
+	public final static int UDP_INCOMMING = 13;
 	/**
 	 * This will be passed from the main activity, either for itself or on
 	 * behalf of {@link LockstepNetwork}, Subclasses of

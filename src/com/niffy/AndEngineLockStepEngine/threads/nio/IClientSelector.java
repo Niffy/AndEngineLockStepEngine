@@ -20,9 +20,10 @@ public interface IClientSelector extends ISelectorThread {
 	 * @throws ClientPendingClosure
 	 *             If the connection is pending closure, will not add any more
 	 *             messages to send.
+	 * @throws IOException 
 	 */
 	public void send(final InetAddress pAddress, final byte[] pData) throws NotConnectedToClient, ClientDoesNotExist,
-			ClientPendingClosure;
+			ClientPendingClosure, IOException;
 
 	/**
 	 * Connect to a client-server

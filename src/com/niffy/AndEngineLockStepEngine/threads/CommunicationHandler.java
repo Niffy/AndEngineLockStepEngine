@@ -9,7 +9,6 @@ import java.net.InetSocketAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.R.bool;
 import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
@@ -107,6 +106,7 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 		case ITCFlags.CLIENT_ERROR:
 			bundle = pMessage.getData();
 			ip = bundle.getString("ip");
+			this.clientError(ip);
 			break;
 		case ITCFlags.CLIENT_DISCONNECTED:
 			bundle = pMessage.getData();
@@ -132,9 +132,8 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 				if(pTCP){
 					this.mTCPClient.send(pAddress, bOutput.toByteArray());
 				}else{
-					this.mTCPClient.send(pAddress, bOutput.toByteArray());
+					this.mUDP.send(pAddress, bOutput.toByteArray());
 				}
-				// TODO send via mMainSelector
 			} catch (IOException e) {
 				log.error("Error sending message to client: {}", pAddress, e);
 				this.networkMessageFailure(pAddress.toString(), pData, ITCFlags.NETWORK_SEND_MESSAGE_FAILURE,

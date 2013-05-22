@@ -97,6 +97,12 @@ public abstract class CommunicationThread extends BaseCommunicationThread implem
 			data = bundle.getByteArray("data");
 			this.mPacketHandler.reconstructData(ip, data);
 			break;
+		case ITCFlags.UDP_INCOMMING:
+			bundle = pMessage.getData();
+			ip = bundle.getString("ip");
+			data = bundle.getByteArray("data");
+			this.mPacketHandler.reconstructData(ip, data);
+			break; 
 		}
 	}
 
