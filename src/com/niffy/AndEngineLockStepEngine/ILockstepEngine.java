@@ -3,17 +3,6 @@ package com.niffy.AndEngineLockStepEngine;
 import org.andengine.engine.lockstep.ILockstep;
 
 public interface ILockstepEngine extends ILockstep {
-	/**
-	 * This will stop the TCP thread from ignoring incoming data, allowing the
-	 * lockstep and game to process data.
-	 */
-	public void startInitialCommunications();
-
-	/**
-	 * Call this when you have finished {@link #startInitialCommunications()}.
-	 * This will ignore and eventually shutdown the TCP Thread.
-	 */
-	public void migrate();
 
 	/**
 	 * Start the ticking!

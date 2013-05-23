@@ -106,16 +106,6 @@ public class Lockstep implements ILockstepEngine, IHandlerMessage {
 	}
 
 	@Override
-	public void startInitialCommunications() {
-		/* IGNORE THIS */
-	}
-
-	@Override
-	public void migrate() {
-		/* IGNORE THIS */
-	}
-
-	@Override
 	public void start() {
 		this.mStarted = true;
 	}
