@@ -90,9 +90,6 @@ public class LockstepNetwork implements ILockstepNetwork {
 		case ITCFlags.NETWORK_ERROR:
 			this.networkError("Unknown network error");
 			break;
-		case ITCFlags.CONNECT_TO:
-			//this.mLockstepEngine.getLockstepClientListener().connected();
-			break;
 		case ITCFlags.CONNECT_TO_ERROR:
 			this.mLockstepEngine.getLockstepClientListener().connectError();
 			break;
@@ -101,6 +98,11 @@ public class LockstepNetwork implements ILockstepNetwork {
 			break;
 		case ITCFlags.NETWORK_SEND_MESSAGE_FAILURE:
 			bundle = pMessage.getData();
+			/* TODO we've got the error information!
+			 * 	bundle.putString("ip", pAddress);
+		bundle.putInt("error", pErrorCode);
+		bundle.putByteArray("data", pData);
+			 */
 			this.mLockstepEngine.getLockstepClientListener().networkError("Could not send message");
 			break;
 		}
