@@ -53,6 +53,10 @@ public class ClientSelector extends BaseSelectorThread implements IClientSelecto
 	@Override
 	public void run() {
 		log.debug("Running TCP Client Selector Thread");
+		this.mRunning.set(true);
+		Message msg = this.mHandler.obtainMessage();
+		msg.what = ITCFlags.TCP_CLIENT_SELECTOR_START;
+		this.mHandler.sendMessage(msg);
 		while (true) {
 			try {
 				// Process any pending changes

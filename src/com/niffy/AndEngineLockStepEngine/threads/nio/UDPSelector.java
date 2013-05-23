@@ -57,6 +57,10 @@ public class UDPSelector extends BaseSelectorThread implements IClientSelector {
 	@Override
 	public void run() {
 		log.debug("Running UDP Selector Thread");
+		this.mRunning.set(true);
+		Message msg = this.mHandler.obtainMessage();
+		msg.what = ITCFlags.UDP_CLIENT_SELECTOR_START;
+		this.mHandler.sendMessage(msg);
 		while (true) {
 			try {
 				// Process any pending changes

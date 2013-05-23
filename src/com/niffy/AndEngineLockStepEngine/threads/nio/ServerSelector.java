@@ -57,6 +57,9 @@ public class ServerSelector extends BaseSelectorThread implements IServerSelecto
 	public void run() {
 		log.debug("Running TCP Selector Thread");
 		this.mRunning.set(true);
+		Message msg = this.mHandler.obtainMessage();
+		msg.what = ITCFlags.TCP_SERVER_SELECTOR_START;
+		this.mHandler.sendMessage(msg);
 		while (true) {
 			try {
 				// Process any pending changes
