@@ -1,6 +1,8 @@
 package com.niffy.AndEngineLockStepEngine.threads.nio;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.AbstractSelectableChannel;
 
 public class ChangeRequest {
@@ -17,16 +19,29 @@ public class ChangeRequest {
 	public int mType;
 	public int mOps;
 	public InetAddress mAddress;
+	/**
+	 * This can be null
+	 */
+	public InetSocketAddress mSocketAddress;
 
 	// ===========================================================
 	// Constructors
 	// ===========================================================
-
-	public ChangeRequest(AbstractSelectableChannel pSocketChannel, int pType, int pOps, InetAddress pAddress) {
+	/**
+	 * 
+	 * @param pSocketChannel
+	 * @param pType
+	 * @param pOps
+	 * @param pAddress
+	 * @param pSocketAddress Can be <code>null</code>
+	 */
+	public ChangeRequest(AbstractSelectableChannel pSocketChannel, int pType, int pOps, InetAddress pAddress,
+			InetSocketAddress pSocketAddress) {
 		this.mChannel = pSocketChannel;
 		this.mType = pType;
 		this.mOps = pOps;
 		this.mAddress = pAddress;
+		this.mSocketAddress = pSocketAddress;
 	}
 
 	// ===========================================================
@@ -36,7 +51,13 @@ public class ChangeRequest {
 	// ===========================================================
 	// Getter & Setter
 	// ===========================================================
-
+	/**
+	 * 
+	 * @return {@link AbstractSelectableChannel} casted as {@link SocketChannel}
+	 */
+	public SocketChannel getAsSocketChannel() {
+		return (SocketChannel) this.mChannel;
+	}
 	// ===========================================================
 	// Methods
 	// ===========================================================

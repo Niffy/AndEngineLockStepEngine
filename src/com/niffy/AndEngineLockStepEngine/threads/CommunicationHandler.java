@@ -81,14 +81,10 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 
 	@Override
 	public void handlePassedMessage(Message pMessage) {
-		/*
-		 * TODO message to select either UDP or TCPClient to send messages
-		 */
 		log.debug("Handling message: {}", pMessage.what);
 		super.handlePassedMessage(pMessage);
 		Bundle bundle;
 		String ip;
-		byte[] data;
 		switch (pMessage.what) {
 		case ITCFlags.NETWORK_SELECTER_DEFAULT:
 			bundle = pMessage.getData();
@@ -119,7 +115,6 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 		byte[] pData = null;
 		while (!Thread.interrupted() && this.mRunning.get() && !this.mTerminated.get()) {
 			try {
-				String addr = pAddress.getHostAddress();
 				final ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
 				final DataOutputStream dOutput = new DataOutputStream(bOutput);
 				pMessage.write(dOutput);
@@ -166,6 +161,7 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 
 	@Override
 	protected void connect(final String pAddress) {
+		log.debug("Connect with string IP");
 		InetAddress address = this.castStringToAddress(pAddress);
 		if (address != null) {
 			this.connect(address);
@@ -285,7 +281,8 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 	}
 
 	protected void connect(final InetAddress pAddress) {
-		if (!this.mTCPClient.containsClient(pAddress) && !this.mTCPServer.containsClient(pAddress)) {
+		log.debug("Connect with InetAddress");
+		if (!this.mTCPClient.containsClient(pAddress)) {
 			InetSocketAddress socketAddress = new InetSocketAddress(pAddress, this.mBaseOptions.getTCPServerPort());
 			try {
 				this.mTCPClient.connectTo(socketAddress);

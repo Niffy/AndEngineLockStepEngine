@@ -132,6 +132,7 @@ public class ServerSelector extends BaseSelectorThread implements IServerSelecto
 	 */
 	@Override
 	protected void accept(SelectionKey pKey) throws IOException {
+		log.debug("accept");
 		ServerSocketChannel serverSocketChannel = (ServerSocketChannel) pKey.channel();
 		SocketChannel socketChannel = serverSocketChannel.accept();
 		Socket socket = socketChannel.socket();
@@ -282,6 +283,7 @@ public class ServerSelector extends BaseSelectorThread implements IServerSelecto
 					 */
 				}
 			}
+			break;
 		case ChangeRequest.REMOVECLIENT:
 			try {
 				this.handleConnectionShutdown(pChangeRequest.mChannel.keyFor(this.mSelector), pChangeRequest.mChannel,
@@ -291,6 +293,7 @@ public class ServerSelector extends BaseSelectorThread implements IServerSelecto
 			} catch (ClientDoesNotExist e) {
 				log.error("Could not shut downconnection.", e);
 			}
+			break;
 		}
 	}
 

@@ -184,7 +184,7 @@ public class UDPSelector extends BaseSelectorThread implements IClientSelector {
 		InetSocketAddress target = (InetSocketAddress) pKey.attachment();
 
 		synchronized (this.mPendingData) {
-			ArrayList<ByteBuffer> queue = this.mPendingData.get(connectionIP);
+			ArrayList<ByteBuffer> queue = this.mPendingData.get(target.getAddress());
 
 			// Write until there's not more data ...
 			while (!queue.isEmpty()) {
@@ -228,6 +228,7 @@ public class UDPSelector extends BaseSelectorThread implements IClientSelector {
 					 */
 				}
 			}
+			break;
 		case ChangeRequest.REGISTER:
 			try {
 				pChangeRequest.mChannel.register(this.mSelector, pChangeRequest.mOps);
@@ -280,7 +281,7 @@ public class UDPSelector extends BaseSelectorThread implements IClientSelector {
 
 		synchronized (this.mPendingChanges) {
 			this.mPendingChanges.add(new ChangeRequest(channel, ChangeRequest.REGISTER, SelectionKey.OP_READ, pAddress
-					.getAddress()));
+					.getAddress(), pAddress));
 		}
 		return channel;
 	}

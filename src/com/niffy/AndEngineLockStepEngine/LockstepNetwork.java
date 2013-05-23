@@ -169,9 +169,12 @@ public class LockstepNetwork implements ILockstepNetwork {
 
 	@Override
 	public void connectTo(String pAddress) {
-		/*
-		 * TODO send message to ICommunicationHandler
-		 */
+		Message msg = this.mCommunicationHandler.getHandler().obtainMessage();
+		msg.what = ITCFlags.CONNECT_TO;
+		Bundle data = new Bundle();
+		data.putString("ip", pAddress);
+		msg.setData(data);
+		this.mCommunicationHandler.getHandler().sendMessage(msg);
 	}
 	
 	@Override

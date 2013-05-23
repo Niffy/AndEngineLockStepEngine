@@ -142,7 +142,7 @@ public abstract class BaseSelectorThread extends BaseCommunicationThread impleme
 		if (channel != null) {
 			synchronized (this.mPendingChanges) {
 				this.mPendingChanges.add(new ChangeRequest(channel, ChangeRequest.REMOVECLIENT,
-						SelectionKey.OP_CONNECT, pAddress));
+						SelectionKey.OP_CONNECT, pAddress, null));
 			}
 		}
 	}
@@ -247,6 +247,16 @@ public abstract class BaseSelectorThread extends BaseCommunicationThread impleme
 
 	protected void handleChangeRequest(final ChangeRequest pChangeRequest) {
 
+	}
+	
+	protected void createQueue(final Connection pConnection){
+		synchronized (this.mPendingData) {
+			ArrayList<ByteBuffer> queue = this.mPendingData.get(pConnection.getAddress());
+			if (queue == null) {
+				queue = new ArrayList<ByteBuffer>();
+				this.mPendingData.put(pConnection.getAddress().getAddress(), queue);
+			}
+		}
 	}
 
 	// ===========================================================

@@ -103,6 +103,7 @@ public class ClientSelector extends BaseSelectorThread implements IClientSelecto
 
 	@Override
 	protected void finishConnection(SelectionKey pKey) throws IOException {
+		log.debug("finishConnection");
 		SocketChannel socketChannel;
 		InetSocketAddress address;
 		Connection con = (Connection) pKey.attachment();
@@ -164,7 +165,7 @@ public class ClientSelector extends BaseSelectorThread implements IClientSelecto
 		}
 
 		synchronized (this.mPendingData) {
-			ArrayList<ByteBuffer> queue = this.mPendingData.get(connectionIP);
+			ArrayList<ByteBuffer> queue = this.mPendingData.get(con.getAddress().getAddress());
 
 			// Write until there's not more data ...
 			while (!queue.isEmpty()) {
@@ -188,6 +189,7 @@ public class ClientSelector extends BaseSelectorThread implements IClientSelecto
 
 	@Override
 	protected void handleChangeRequest(ChangeRequest pChangeRequest) {
+		log.debug("Change Request: {}", pChangeRequest.mType);
 		switch (pChangeRequest.mType) {
 		case ChangeRequest.CHANGEOPS:
 			SelectionKey key = pChangeRequest.mChannel.keyFor(this.mSelector);
@@ -208,9 +210,27 @@ public class ClientSelector extends BaseSelectorThread implements IClientSelecto
 					 */
 				}
 			}
+			break;
 		case ChangeRequest.REGISTER:
 			try {
-				pChangeRequest.mChannel.register(this.mSelector, pChangeRequest.mOps);
+				SelectionKey keyFound = pChangeRequest.mChannel.register(this.mSelector, pChangeRequest.mOps);
+				/*
+				 * fixes #1
+				 * Hack to finish connection. When making the connection the socket 
+				 * channel doesn't seem to have the IP address we're connecting to,
+				 * which is use to store a connection reference.
+				 * So we create one early on!
+				 */
+				Connection con = null;
+				if (pChangeRequest.mSocketAddress != null) {
+					con = new Connection(pChangeRequest.mSocketAddress, pChangeRequest.getAsSocketChannel());
+				} else {
+					InetSocketAddress address = new InetSocketAddress(pChangeRequest.mAddress,
+							this.mBaseOptions.getTCPServerPort());
+					con = new Connection(address, pChangeRequest.getAsSocketChannel());
+				}
+				keyFound.attach(con);
+				this.createQueue(con);
 			} catch (ClosedChannelException e) {
 				log.error("ClosedChannelException", e);
 				/* TODO handle this, clean up pending data and pending changes?
@@ -232,6 +252,7 @@ public class ClientSelector extends BaseSelectorThread implements IClientSelecto
 			} catch (ClientDoesNotExist e) {
 				log.error("Could not shut downconnection.", e);
 			}
+			break;
 		}
 	}
 
@@ -279,6 +300,7 @@ public class ClientSelector extends BaseSelectorThread implements IClientSelecto
 	// Methods
 	// ===========================================================
 	protected SocketChannel initiateConnection(final InetSocketAddress pAddress) throws IOException {
+		log.debug("InitiateConnection: {}", pAddress);
 		SocketChannel socketChannel = SocketChannel.open();
 		socketChannel.configureBlocking(false);
 
@@ -291,9 +313,9 @@ public class ClientSelector extends BaseSelectorThread implements IClientSelecto
 		// is ready to complete connection establishment.
 		synchronized (this.mPendingChanges) {
 			this.mPendingChanges.add(new ChangeRequest(socketChannel, ChangeRequest.REGISTER, SelectionKey.OP_CONNECT,
-					pAddress.getAddress()));
+					pAddress.getAddress(), pAddress));
 		}
-
+		this.mSelector.wakeup();
 		return socketChannel;
 	}
 
@@ -309,6 +331,7 @@ public class ClientSelector extends BaseSelectorThread implements IClientSelecto
 
 		this.mSelector.wakeup();
 	}
+	
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================
