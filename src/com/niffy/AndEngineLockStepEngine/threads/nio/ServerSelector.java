@@ -57,9 +57,9 @@ public class ServerSelector extends BaseSelectorThread implements IServerSelecto
 	public void run() {
 		log.debug("Running TCP Selector Thread");
 		this.mRunning.set(true);
-		Message msg = this.mHandler.obtainMessage();
+		Message msg = this.mCallerThreadHandler.obtainMessage();
 		msg.what = ITCFlags.TCP_SERVER_SELECTOR_START;
-		this.mHandler.sendMessage(msg);
+		this.mCallerThreadHandler.sendMessage(msg);
 		while (true) {
 			try {
 				// Process any pending changes
@@ -140,13 +140,13 @@ public class ServerSelector extends BaseSelectorThread implements IServerSelecto
 		Connection con = new Connection((InetSocketAddress) socket.getRemoteSocketAddress(), socketChannel);
 		this.mChannelMap.put(con.getAddress().getAddress(), con);
 		pKey.attach(con);
-		Message msg = this.mHandler.obtainMessage();
+		Message msg = this.mCallerThreadHandler.obtainMessage();
 		msg.what = ITCFlags.NEW_CLIENT_CONNECTED;
 		Bundle data = new Bundle();
 		final String pIP = con.getAddress().getAddress().getHostAddress();
 		data.putString("ip", pIP);
 		msg.setData(data);
-		this.mHandler.sendMessage(msg);
+		this.mCallerThreadHandler.sendMessage(msg);
 	}
 
 	@Override
@@ -202,13 +202,13 @@ public class ServerSelector extends BaseSelectorThread implements IServerSelecto
 		byte[] dataIn = new byte[numRead];
 		System.arraycopy(this.readBuffer.array(), 0, dataIn, 0, numRead);
 		
-		Message msg = this.mHandler.obtainMessage();
+		Message msg = this.mCallerThreadHandler.obtainMessage();
 		msg.what = ITCFlags.TCP_CLIENT_INCOMMING;
 		Bundle data = new Bundle();
 		data.putString("ip", connectionIP);
 		data.putByteArray("data", dataIn);
 		msg.setData(data);
-		this.mHandler.sendMessage(msg);
+		this.mCallerThreadHandler.sendMessage(msg);
 	}
 
 	/**

@@ -54,9 +54,9 @@ public class ClientSelector extends BaseSelectorThread implements IClientSelecto
 	public void run() {
 		log.debug("Running TCP Client Selector Thread");
 		this.mRunning.set(true);
-		Message msg = this.mHandler.obtainMessage();
+		Message msg = this.mCallerThreadHandler.obtainMessage();
 		msg.what = ITCFlags.TCP_CLIENT_SELECTOR_START;
-		this.mHandler.sendMessage(msg);
+		this.mCallerThreadHandler.sendMessage(msg);
 		while (true) {
 			try {
 				// Process any pending changes
@@ -134,12 +134,12 @@ public class ClientSelector extends BaseSelectorThread implements IClientSelecto
 		}
 		pKey.interestOps(SelectionKey.OP_WRITE);
 
-		Message msg = this.mHandler.obtainMessage();
+		Message msg = this.mCallerThreadHandler.obtainMessage();
 		msg.what = ITCFlags.NEW_CLIENT_CONNECTED;
 		Bundle data = new Bundle();
 		data.putString("ip", address.getAddress().getHostAddress());
 		msg.setData(data);
-		this.mHandler.sendMessage(msg);
+		this.mCallerThreadHandler.sendMessage(msg);
 	}
 
 	/**

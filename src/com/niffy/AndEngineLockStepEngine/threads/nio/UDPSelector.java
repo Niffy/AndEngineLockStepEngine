@@ -58,9 +58,9 @@ public class UDPSelector extends BaseSelectorThread implements IClientSelector {
 	public void run() {
 		log.debug("Running UDP Selector Thread");
 		this.mRunning.set(true);
-		Message msg = this.mHandler.obtainMessage();
+		Message msg = this.mCallerThreadHandler.obtainMessage();
 		msg.what = ITCFlags.UDP_CLIENT_SELECTOR_START;
-		this.mHandler.sendMessage(msg);
+		this.mCallerThreadHandler.sendMessage(msg);
 		while (true) {
 			try {
 				// Process any pending changes
@@ -159,13 +159,13 @@ public class UDPSelector extends BaseSelectorThread implements IClientSelector {
 		byte[] dataIn = new byte[numRead];
 		System.arraycopy(this.readBuffer.array(), 0, dataIn, 0, numRead);
 
-		Message msg = this.mHandler.obtainMessage();
+		Message msg = this.mCallerThreadHandler.obtainMessage();
 		msg.what = ITCFlags.UDP_INCOMMING;
 		Bundle data = new Bundle();
 		data.putString("ip", connectionIP);
 		data.putByteArray("data", dataIn);
 		msg.setData(data);
-		this.mHandler.sendMessage(msg);
+		this.mCallerThreadHandler.sendMessage(msg);
 	}
 
 	/**

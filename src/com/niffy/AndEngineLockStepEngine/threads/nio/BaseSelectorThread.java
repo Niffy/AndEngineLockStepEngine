@@ -215,12 +215,12 @@ public abstract class BaseSelectorThread extends BaseCommunicationThread impleme
 		pKey.cancel();
 		log.warn("Closing channel: {}", pChannel.toString());
 		pChannel.close();
-		Message msg = this.mHandler.obtainMessage();
+		Message msg = this.mCallerThreadHandler.obtainMessage();
 		msg.what = ITCFlags.CLIENT_ERROR;
 		Bundle data = new Bundle();
 		data.putString("ip", pAddress.toString());
 		msg.setData(data);
-		this.mHandler.sendMessage(msg);
+		this.mCallerThreadHandler.sendMessage(msg);
 	}
 
 	protected void handleConnectionShutdown(SelectionKey pKey, AbstractSelectableChannel pChannel,
@@ -237,12 +237,12 @@ public abstract class BaseSelectorThread extends BaseCommunicationThread impleme
 				throw new ClientDoesNotExist(pMessage);
 			}
 		}
-		Message msg = this.mHandler.obtainMessage();
+		Message msg = this.mCallerThreadHandler.obtainMessage();
 		msg.what = ITCFlags.CLIENT_DISCONNECTED;
 		Bundle data = new Bundle();
 		data.putString("ip", pAddress.toString());
 		msg.setData(data);
-		this.mHandler.sendMessage(msg);
+		this.mCallerThreadHandler.sendMessage(msg);
 	}
 
 	protected void handleChangeRequest(final ChangeRequest pChangeRequest) {
