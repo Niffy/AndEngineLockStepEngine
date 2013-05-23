@@ -73,12 +73,9 @@ public class CommunicationHandler extends CommunicationThread implements ICommun
 		Looper.prepare();
 		this.mRunning.set(true);
 		this.mHandler = new WeakThreadHandler<IHandlerMessage>(this, Looper.myLooper());
-		Thread udp = (Thread) this.mUDP;
-		udp.start();
-		Thread tcpClient = (Thread) this.mTCPClient;
-		tcpClient.start();
-		Thread tcpServer = (Thread) this.mTCPServer;
-		tcpServer.start();
+		Message msg = this.mCallerThreadHandler.obtainMessage();
+		msg.what = ITCFlags.MAIN_COMMUNICATION_START;
+		this.mCallerThreadHandler.sendMessage(msg);
 		Looper.loop();
 	}
 

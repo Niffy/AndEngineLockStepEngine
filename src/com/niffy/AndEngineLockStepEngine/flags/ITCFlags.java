@@ -26,6 +26,7 @@ public final class ITCFlags {
 	public final static int TCP_SERVER_SELECTOR_START = -1000000;
 	public final static int TCP_CLIENT_SELECTOR_START = -1000001;
 	public final static int UDP_CLIENT_SELECTOR_START = -1000002;
+	public final static int MAIN_COMMUNICATION_START = -1000003;
 	
 	/**
 	 * This will be sent from {@link LockstepNetwork} to
